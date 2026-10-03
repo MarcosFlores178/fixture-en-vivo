@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { usePartidos, Partido } from '../hooks/usePartidos';
 import { useEquipos, Equipo } from '../hooks/useEquipos';
+import { useCampeones, Campeon } from '../hooks/useCampeones';
 
 // Componente interno que contiene la lógica y llamadas a la API.
 // Solo se monta cuando autorizado === true, garantizando cero peticiones si el PIN falla.
 const PanelAdminContenido: React.FC = () => {
   const { partidos, isLoading: isLoadingPartidos, error: errorPartidos, mutate: mutatePartidos } = usePartidos();
   const { equipos, isLoading: isLoadingEquipos, error: errorEquipos, mutate: mutateEquipos } = useEquipos();
+  const { campeones, isLoading: isLoadingCampeones, mutate: mutateCampeones } = useCampeones();
 
   // ================= ESTADO DE GESTIÓN DE EQUIPOS =================
   const [nombreEquipo, setNombreEquipo] = useState('');
@@ -26,12 +28,51 @@ const PanelAdminContenido: React.FC = () => {
   // Retroalimentación visual de actualización de partidos
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // ================= ESTADO DE CORONAR CAMPEONES =================
+  const [seleccionFutbol, setSeleccionFutbol] = useState<string>('');
+  const [seleccionPadel, setSeleccionPadel] = useState<string>('');
+  const [savingCampeon, setSavingCampeon] = useState<string | null>(null);
+  const [mensajeCampeon, setMensajeCampeon] = useState<string | null>(null);
+
   // Normalizar detección de pádel
   const esPadel = (dep: string) => {
     return dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'padel';
   };
 
-  // Filtrar catálogo de equipos por el deporte seleccionado para el partido
+  // Campeones actuales registrados
+  const campeonFutbol = useMemo(
+    () => campeones.find((c) => !esPadel(c.deporte)),
+    [campeones]
+  );
+  const campeonPadel = useMemo(
+    () => campeones.find((c) => esPadel(c.deporte)),
+    [campeones]
+  );
+
+  // Inicializar selección con los datos existentes
+  useEffect(() => {
+    if (campeonFutbol && !seleccionFutbol) {
+      setSeleccionFutbol(campeonFutbol.equipo_nombre);
+    }
+  }, [campeonFutbol]);
+
+  useEffect(() => {
+    if (campeonPadel && !seleccionPadel) {
+      setSeleccionPadel(campeonPadel.equipo_nombre);
+    }
+  }, [campeonPadel]);
+
+  // Listas de equipos por deporte
+  const equiposFutbol = useMemo(
+    () => equipos.filter((eq) => !esPadel(eq.deporte)),
+    [equipos]
+  );
+  const equiposPadel = useMemo(
+    () => equipos.filter((eq) => esPadel(eq.deporte)),
+    [equipos]
+  );
+
+  // Filtrar catálogo de equipos por el deporte seleccionado para el nuevo partido
   const equiposFiltrados = useMemo(() => {
     return equipos.filter((eq) => esPadel(eq.deporte) === esPadel(deporte));
   }, [equipos, deporte]);
@@ -43,7 +84,7 @@ const PanelAdminContenido: React.FC = () => {
     setEquipoB('');
   };
 
-  // Guardar nuevo Equipo (POST /api/equipos)
+  // 1. Guardar nuevo Equipo (POST /api/equipos)
   const handleCrearEquipo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombreEquipo.trim()) {
@@ -81,7 +122,7 @@ const PanelAdminContenido: React.FC = () => {
     }
   };
 
-  // Crear nuevo Partido (POST /api/partidos)
+  // 2. Crear nuevo Partido (POST /api/partidos)
   const handleCrearPartido = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fase.trim() || !equipoA || !equipoB) {
@@ -124,7 +165,7 @@ const PanelAdminContenido: React.FC = () => {
     }
   };
 
-  // Actualizar partido (PATCH /api/partidos/:id + mutate)
+  // 3. Actualizar partido (PATCH /api/partidos/:id + mutate)
   const handleActualizar = async (id: string, updates: Partial<Partido>) => {
     try {
       setUpdatingId(id);
@@ -174,6 +215,38 @@ const PanelAdminContenido: React.FC = () => {
     handleActualizar(partido.id, { [setKey]: nuevoValor });
   };
 
+  // 4. Guardar Campeón (POST /api/campeones con upsert)
+  const handleGuardarCampeon = async (deporteNombre: 'Fútbol 5' | 'Pádel', equipoSeleccionado: string) => {
+    if (!equipoSeleccionado) {
+      alert(`Selecciona un equipo para coronar como campeón de ${deporteNombre}.`);
+      return;
+    }
+
+    try {
+      setSavingCampeon(deporteNombre);
+      const res = await fetch('/api/campeones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deporte: deporteNombre,
+          equipo_nombre: equipoSeleccionado,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Error al registrar el campeón en el servidor');
+      }
+
+      await mutateCampeones();
+      setMensajeCampeon(`¡Campeón de ${deporteNombre} actualizado a "${equipoSeleccionado}"!`);
+      setTimeout(() => setMensajeCampeon(null), 3500);
+    } catch (err: any) {
+      alert(err.message || 'Error al guardar campeón');
+    } finally {
+      setSavingCampeon(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 p-4 sm:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -189,7 +262,7 @@ const PanelAdminContenido: React.FC = () => {
               </h1>
             </div>
             <p className="text-slate-500 text-sm mt-1">
-              Sesión autenticada. Administra equipos, programa partidos y actualiza resultados en directo.
+              Sesión autenticada. Administra equipos, programa partidos, actualiza marcadores y corona campeones.
             </p>
           </div>
           <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 w-fit">
@@ -791,6 +864,114 @@ const PanelAdminContenido: React.FC = () => {
               })}
             </div>
           )}
+        </section>
+
+        {/* ================= SECCIÓN: 👑 CORONAR CAMPEONES ================= */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 pb-3 border-b border-slate-100">
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                <span>👑</span>
+                Coronar Campeones
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Define o actualiza a los campeones oficiales del torneo para Fútbol 5 y Pádel.
+              </p>
+            </div>
+            {isLoadingCampeones && (
+              <span className="text-xs text-slate-500 animate-pulse">Sincronizando campeones...</span>
+            )}
+          </div>
+
+          {mensajeCampeon && (
+            <div className="mb-6 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl font-medium text-center">
+              {mensajeCampeon}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Bloque 1: Fútbol 5 */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-3 py-1 rounded-lg border border-emerald-200">
+                  ⚽ Fútbol 5
+                </span>
+                {campeonFutbol && (
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                    👑 Actual: {campeonFutbol.equipo_nombre}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Seleccionar Equipo Campeón de Fútbol 5:
+                </label>
+                <select
+                  value={seleccionFutbol || campeonFutbol?.equipo_nombre || ''}
+                  onChange={(e) => setSeleccionFutbol(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="">-- Elige el Campeón de Fútbol 5 --</option>
+                  {equiposFutbol.map((eq) => (
+                    <option key={eq.id} value={eq.nombre}>
+                      {eq.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleGuardarCampeon('Fútbol 5', seleccionFutbol || campeonFutbol?.equipo_nombre || '')}
+                disabled={savingCampeon === 'Fútbol 5' || !(seleccionFutbol || campeonFutbol?.equipo_nombre)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+              >
+                {savingCampeon === 'Fútbol 5' ? 'Guardando Campeón...' : 'Guardar Campeón'}
+              </button>
+            </div>
+
+            {/* Bloque 2: Pádel */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider bg-sky-100 text-sky-800 px-3 py-1 rounded-lg border border-sky-200">
+                  🎾 Pádel
+                </span>
+                {campeonPadel && (
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                    👑 Actual: {campeonPadel.equipo_nombre}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Seleccionar Pareja Campeona de Pádel:
+                </label>
+                <select
+                  value={seleccionPadel || campeonPadel?.equipo_nombre || ''}
+                  onChange={(e) => setSeleccionPadel(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="">-- Elige la Pareja Campeona de Pádel --</option>
+                  {equiposPadel.map((eq) => (
+                    <option key={eq.id} value={eq.nombre}>
+                      {eq.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleGuardarCampeon('Pádel', seleccionPadel || campeonPadel?.equipo_nombre || '')}
+                disabled={savingCampeon === 'Pádel' || !(seleccionPadel || campeonPadel?.equipo_nombre)}
+                className="w-full bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+              >
+                {savingCampeon === 'Pádel' ? 'Guardando Campeón...' : 'Guardar Campeón'}
+              </button>
+            </div>
+          </div>
         </section>
       </div>
     </div>

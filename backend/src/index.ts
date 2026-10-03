@@ -112,6 +112,33 @@ app.post('/api/equipos', async (req: Request, res: Response) => {
   }
 });
 
+// ================= CAMPEONES =================
+
+// 6. Obtener todos los campeones
+app.get('/api/campeones', async (_req: Request, res: Response) => {
+  try {
+    const campeones = await prisma.campeon.findMany();
+    res.json(campeones);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener los campeones' });
+  }
+});
+
+// 7. Registrar o actualizar campeón por deporte con upsert
+app.post('/api/campeones', async (req: Request, res: Response) => {
+  try {
+    const { deporte, equipo_nombre } = req.body;
+    const campeon = await prisma.campeon.upsert({
+      where: { deporte },
+      update: { equipo_nombre },
+      create: { deporte, equipo_nombre },
+    });
+    res.json(campeon);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al registrar el campeón' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor de Fixture en vivo escuchando en http://localhost:${PORT}`);
 });
