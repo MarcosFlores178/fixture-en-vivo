@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { usePartidos, Partido } from '../hooks/usePartidos';
 import { useEquipos, Equipo } from '../hooks/useEquipos';
 
-export const PanelAdmin: React.FC = () => {
+// Componente interno que contiene la lógica y llamadas a la API.
+// Solo se monta cuando autorizado === true, garantizando cero peticiones si el PIN falla.
+const PanelAdminContenido: React.FC = () => {
   const { partidos, isLoading: isLoadingPartidos, error: errorPartidos, mutate: mutatePartidos } = usePartidos();
   const { equipos, isLoading: isLoadingEquipos, error: errorEquipos, mutate: mutateEquipos } = useEquipos();
 
@@ -41,7 +43,7 @@ export const PanelAdmin: React.FC = () => {
     setEquipoB('');
   };
 
-  // 1. Guardar nuevo Equipo (POST /api/equipos)
+  // Guardar nuevo Equipo (POST /api/equipos)
   const handleCrearEquipo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombreEquipo.trim()) {
@@ -71,7 +73,6 @@ export const PanelAdmin: React.FC = () => {
       setEquipoFormSuccess('¡Equipo registrado con éxito!');
       await mutateEquipos();
 
-      // Limpiar mensaje de éxito después de 3 segundos
       setTimeout(() => setEquipoFormSuccess(null), 3000);
     } catch (err: any) {
       setEquipoFormError(err.message || 'Error al guardar el equipo');
@@ -80,7 +81,7 @@ export const PanelAdmin: React.FC = () => {
     }
   };
 
-  // 2. Crear nuevo Partido (POST /api/partidos)
+  // Crear nuevo Partido (POST /api/partidos)
   const handleCrearPartido = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fase.trim() || !equipoA || !equipoB) {
@@ -123,7 +124,7 @@ export const PanelAdmin: React.FC = () => {
     }
   };
 
-  // 3. Actualizar partido (PATCH /api/partidos/:id + mutate)
+  // Actualizar partido (PATCH /api/partidos/:id + mutate)
   const handleActualizar = async (id: string, updates: Partial<Partido>) => {
     try {
       setUpdatingId(id);
@@ -188,7 +189,7 @@ export const PanelAdmin: React.FC = () => {
               </h1>
             </div>
             <p className="text-slate-500 text-sm mt-1">
-              Administra el catálogo de equipos, programa partidos y carga resultados en directo.
+              Sesión autenticada. Administra equipos, programa partidos y actualiza resultados en directo.
             </p>
           </div>
           <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 w-fit">
@@ -268,7 +269,7 @@ export const PanelAdmin: React.FC = () => {
             </div>
           </form>
 
-          {/* Badges de equipos ya registrados */}
+          {/* Badges de equipos registrados */}
           {equipos.length > 0 && (
             <div className="mt-5 pt-4 border-t border-slate-100">
               <p className="text-xs font-semibold text-slate-500 mb-2">Catálogo disponible:</p>
@@ -301,7 +302,6 @@ export const PanelAdmin: React.FC = () => {
           )}
 
           <form onSubmit={handleCrearPartido} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Deporte */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Deporte *
@@ -316,7 +316,6 @@ export const PanelAdmin: React.FC = () => {
               </select>
             </div>
 
-            {/* Fase */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Fase / Horario *
@@ -331,7 +330,6 @@ export const PanelAdmin: React.FC = () => {
               />
             </div>
 
-            {/* Equipo A (<select> con datos de useEquipos filtrados) */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Equipo A (Local) *
@@ -351,7 +349,6 @@ export const PanelAdmin: React.FC = () => {
               </select>
             </div>
 
-            {/* Equipo B (<select> con datos de useEquipos filtrados) */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Equipo B (Visitante) *
@@ -798,4 +795,29 @@ export const PanelAdmin: React.FC = () => {
       </div>
     </div>
   );
+};
+
+// Componente principal exportado con validación de PIN en el cliente
+export const PanelAdmin: React.FC = () => {
+  const [autorizado, setAutorizado] = useState(false);
+
+  useEffect(() => {
+    const pin = window.prompt('Ingrese el PIN de administrador:');
+    if (pin === '9173000') {
+      setAutorizado(true);
+    }
+  }, []);
+
+  // Si no está autorizado o se canceló el prompt, no monta el contenido ni ejecuta peticiones
+  if (!autorizado) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-red-500 tracking-tight text-center">
+          ⛔ ACCESO DENEGADO
+        </h1>
+      </div>
+    );
+  }
+
+  return <PanelAdminContenido />;
 };
