@@ -146,6 +146,20 @@ app.post('/api/campeones', async (req: Request, res: Response) => {
   }
 });
 
+// 8. Anular/Borrar campeón y subcampeón por deporte
+app.delete('/api/campeones/:deporte', async (req: Request, res: Response) => {
+  try {
+    const { deporte } = req.params;
+    await prisma.campeon.delete({
+      where: { deporte },
+    });
+    res.status(200).json({ message: 'Campeón y subcampeón anulados correctamente' });
+  } catch (error) {
+    // Si el registro no existe, simplemente devolver status 200 sin romper la aplicación
+    res.status(200).json({ message: 'No había campeón registrado o ya fue eliminado' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor de Fixture en vivo escuchando en http://localhost:${PORT}`);
 });

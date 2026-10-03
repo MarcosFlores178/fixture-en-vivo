@@ -57,6 +57,7 @@ const PanelAdminContenido: React.FC = () => {
   const [seleccionSubPadel, setSeleccionSubPadel] = useState<string>('');
 
   const [savingCampeon, setSavingCampeon] = useState<string | null>(null);
+  const [deletingCampeon, setDeletingCampeon] = useState<string | null>(null);
   const [mensajeCampeon, setMensajeCampeon] = useState<string | null>(null);
 
   // Campeones actuales registrados en BD
@@ -73,7 +74,7 @@ const PanelAdminContenido: React.FC = () => {
     [campeones]
   );
 
-  // Inicializar selección de campeones y subcampeones con datos existentes
+  // Inicializar o resetear selección de campeones y subcampeones con datos existentes
   useEffect(() => {
     if (campeonFutbolMasc) {
       if (!seleccionFutbolMasc && campeonFutbolMasc.equipo_nombre) {
@@ -82,6 +83,9 @@ const PanelAdminContenido: React.FC = () => {
       if (!seleccionSubFutbolMasc && campeonFutbolMasc.subcampeon_nombre) {
         setSeleccionSubFutbolMasc(campeonFutbolMasc.subcampeon_nombre);
       }
+    } else {
+      setSeleccionFutbolMasc('');
+      setSeleccionSubFutbolMasc('');
     }
   }, [campeonFutbolMasc]);
 
@@ -93,6 +97,9 @@ const PanelAdminContenido: React.FC = () => {
       if (!seleccionSubFutbolFem && campeonFutbolFem.subcampeon_nombre) {
         setSeleccionSubFutbolFem(campeonFutbolFem.subcampeon_nombre);
       }
+    } else {
+      setSeleccionFutbolFem('');
+      setSeleccionSubFutbolFem('');
     }
   }, [campeonFutbolFem]);
 
@@ -104,6 +111,9 @@ const PanelAdminContenido: React.FC = () => {
       if (!seleccionSubPadel && campeonPadel.subcampeon_nombre) {
         setSeleccionSubPadel(campeonPadel.subcampeon_nombre);
       }
+    } else {
+      setSeleccionPadel('');
+      setSeleccionSubPadel('');
     }
   }, [campeonPadel]);
 
@@ -303,6 +313,45 @@ const PanelAdminContenido: React.FC = () => {
       alert(err.message || 'Error al guardar podio');
     } finally {
       setSavingCampeon(null);
+    }
+  };
+
+  // 5. Anular Campeón y Subcampeón (DELETE /api/campeones/:deporte)
+  const handleAnularCampeon = async (
+    deporteKey: CategoriaDeporte,
+    nombreLabel: string
+  ) => {
+    try {
+      setDeletingCampeon(deporteKey);
+      const res = await fetch(`/api/campeones/${deporteKey}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Error al anular el podio');
+      }
+
+      // Limpiar selects de ese deporte para volver al estado por defecto
+      if (deporteKey === 'futbol_masculino') {
+        setSeleccionFutbolMasc('');
+        setSeleccionSubFutbolMasc('');
+      } else if (deporteKey === 'futbol_femenino') {
+        setSeleccionFutbolFem('');
+        setSeleccionSubFutbolFem('');
+      } else if (deporteKey === 'padel') {
+        setSeleccionPadel('');
+        setSeleccionSubPadel('');
+      }
+
+      // Mutar useCampeones para que la interfaz se limpie y vuelva a mostrar el estado vacío
+      await mutateCampeones();
+
+      setMensajeCampeon(`Se anuló el podio de ${nombreLabel}.`);
+      setTimeout(() => setMensajeCampeon(null), 3500);
+    } catch (err: any) {
+      alert(err.message || 'Error al anular podio');
+    } finally {
+      setDeletingCampeon(null);
     }
   };
 
@@ -1002,21 +1051,31 @@ const PanelAdminContenido: React.FC = () => {
                 </select>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleGuardarCampeon(
-                    'futbol_masculino',
-                    'Fútbol 5 Masculino',
-                    seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || '',
-                    seleccionSubFutbolMasc || campeonFutbolMasc?.subcampeon_nombre || ''
-                  )
-                }
-                disabled={savingCampeon === 'futbol_masculino' || !(seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre)}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
-              >
-                {savingCampeon === 'futbol_masculino' ? 'Guardando...' : 'Guardar Campeón y Subcampeón'}
-              </button>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleGuardarCampeon(
+                      'futbol_masculino',
+                      'Fútbol 5 Masculino',
+                      seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || '',
+                      seleccionSubFutbolMasc || campeonFutbolMasc?.subcampeon_nombre || ''
+                    )
+                  }
+                  disabled={savingCampeon === 'futbol_masculino' || !(seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre)}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+                >
+                  {savingCampeon === 'futbol_masculino' ? 'Guardando...' : 'Guardar Resultados'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAnularCampeon('futbol_masculino', 'Fútbol 5 Masculino')}
+                  disabled={deletingCampeon === 'futbol_masculino'}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3.5 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  {deletingCampeon === 'futbol_masculino' ? 'Anulando...' : '🗑️ Anular'}
+                </button>
+              </div>
             </div>
 
             {/* Bloque 2: Fútbol 5 Femenino */}
@@ -1068,21 +1127,31 @@ const PanelAdminContenido: React.FC = () => {
                 </select>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleGuardarCampeon(
-                    'futbol_femenino',
-                    'Fútbol 5 Femenino',
-                    seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || '',
-                    seleccionSubFutbolFem || campeonFutbolFem?.subcampeon_nombre || ''
-                  )
-                }
-                disabled={savingCampeon === 'futbol_femenino' || !(seleccionFutbolFem || campeonFutbolFem?.equipo_nombre)}
-                className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
-              >
-                {savingCampeon === 'futbol_femenino' ? 'Guardando...' : 'Guardar Campeón y Subcampeón'}
-              </button>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleGuardarCampeon(
+                      'futbol_femenino',
+                      'Fútbol 5 Femenino',
+                      seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || '',
+                      seleccionSubFutbolFem || campeonFutbolFem?.subcampeon_nombre || ''
+                    )
+                  }
+                  disabled={savingCampeon === 'futbol_femenino' || !(seleccionFutbolFem || campeonFutbolFem?.equipo_nombre)}
+                  className="flex-1 bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+                >
+                  {savingCampeon === 'futbol_femenino' ? 'Guardando...' : 'Guardar Resultados'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAnularCampeon('futbol_femenino', 'Fútbol 5 Femenino')}
+                  disabled={deletingCampeon === 'futbol_femenino'}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3.5 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  {deletingCampeon === 'futbol_femenino' ? 'Anulando...' : '🗑️ Anular'}
+                </button>
+              </div>
             </div>
 
             {/* Bloque 3: Pádel */}
@@ -1134,21 +1203,31 @@ const PanelAdminContenido: React.FC = () => {
                 </select>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleGuardarCampeon(
-                    'padel',
-                    'Pádel',
-                    seleccionPadel || campeonPadel?.equipo_nombre || '',
-                    seleccionSubPadel || campeonPadel?.subcampeon_nombre || ''
-                  )
-                }
-                disabled={savingCampeon === 'padel' || !(seleccionPadel || campeonPadel?.equipo_nombre)}
-                className="w-full bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
-              >
-                {savingCampeon === 'padel' ? 'Guardando...' : 'Guardar Campeón y Subcampeón'}
-              </button>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleGuardarCampeon(
+                      'padel',
+                      'Pádel',
+                      seleccionPadel || campeonPadel?.equipo_nombre || '',
+                      seleccionSubPadel || campeonPadel?.subcampeon_nombre || ''
+                    )
+                  }
+                  disabled={savingCampeon === 'padel' || !(seleccionPadel || campeonPadel?.equipo_nombre)}
+                  className="flex-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+                >
+                  {savingCampeon === 'padel' ? 'Guardando...' : 'Guardar Resultados'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAnularCampeon('padel', 'Pádel')}
+                  disabled={deletingCampeon === 'padel'}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3.5 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+                >
+                  {deletingCampeon === 'padel' ? 'Anulando...' : '🗑️ Anular'}
+                </button>
+              </div>
             </div>
           </div>
         </section>
