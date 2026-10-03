@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Partido {
+  id         String @id @default(uuid())
+  deporte    String
+  fase       String
+  equipo_a   String
+  equipo_b   String
+  marcador_a String @default("0")
+  marcador_b String @default("0")
+  estado     String @default("pendiente")
+}

@@ -1,0 +1,172 @@
+import React, { useMemo } from 'react';
+import { usePartidos, Partido } from '../hooks/usePartidos';
+
+export const VistaPublica: React.FC = () => {
+  const { partidos, isLoading, error } = usePartidos();
+
+  // Agrupamiento dinámico por deporte
+  const partidosPorDeporte = useMemo(() => {
+    return partidos.reduce<Record<string, Partido[]>>((acc, partido) => {
+      const dep = partido.deporte || 'General';
+      if (!acc[dep]) {
+        acc[dep] = [];
+      }
+      acc[dep].push(partido);
+      return acc;
+    }, {});
+  }, [partidos]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-xl font-medium text-gray-300">Cargando fixture en tiempo real...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
+        <div className="bg-red-950/50 border border-red-500/40 p-6 rounded-2xl max-w-md text-center">
+          <p className="text-xl font-semibold text-red-400 mb-2">Error de conexión</p>
+          <p className="text-sm text-gray-300">{error.message || 'No se pudieron sincronizar los partidos.'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const deportes = Object.keys(partidosPorDeporte);
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white py-10 px-4 sm:px-8 lg:px-12 font-sans">
+      {/* Encabezado Principal */}
+      <header className="max-w-7xl mx-auto mb-10 pb-6 border-b border-gray-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <span className="w-3 h-8 bg-emerald-500 rounded-full inline-block" />
+            Fixture en Vivo
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">
+            Tablero de marcadores actualizado automáticamente cada 5 segundos
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 bg-gray-800/80 px-4 py-2 rounded-full border border-gray-700 w-fit">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+          Sincronización activa
+        </div>
+      </header>
+
+      {/* Contenedor de Deportes */}
+      <main className="max-w-7xl mx-auto space-y-12">
+        {deportes.length === 0 ? (
+          <div className="text-center py-20 bg-gray-800/40 rounded-2xl border border-gray-800">
+            <p className="text-gray-400 text-lg">No hay partidos programados en este momento.</p>
+          </div>
+        ) : (
+          deportes.map((deporte) => (
+            <section key={deporte} className="space-y-6">
+              {/* Título de Deporte */}
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold tracking-wide uppercase text-gray-200">
+                  {deporte}
+                </h2>
+                <span className="text-xs bg-gray-800 text-gray-300 px-3 py-1 rounded-full font-semibold border border-gray-700">
+                  {partidosPorDeporte[deporte].length} {partidosPorDeporte[deporte].length === 1 ? 'partido' : 'partidos'}
+                </span>
+              </div>
+
+              {/* Grid de Tarjetas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {partidosPorDeporte[deporte].map((partido) => {
+                  const enJuego = partido.estado === 'en_juego';
+                  const pendiente = partido.estado === 'pendiente';
+
+                  return (
+                    <div
+                      key={partido.id}
+                      className={`relative overflow-hidden rounded-2xl p-6 transition-all duration-300 border ${
+                        enJuego
+                          ? 'bg-gray-800/90 border-emerald-500/50 shadow-xl shadow-emerald-500/10'
+                          : 'bg-gray-800/40 border-gray-800 hover:border-gray-700'
+                      }`}
+                    >
+                      {/* Barra superior de la tarjeta: Fase y Estado */}
+                      <div className="flex items-center justify-between mb-6">
+                        <span className="text-xs font-semibold tracking-wider uppercase text-gray-400 bg-gray-900/60 px-3 py-1 rounded-md border border-gray-800">
+                          {partido.fase}
+                        </span>
+
+                        {enJuego ? (
+                          <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/40 px-3 py-1 rounded-full animate-pulse">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                            <span className="text-xs font-extrabold tracking-widest text-red-400">
+                              EN VIVO
+                            </span>
+                          </div>
+                        ) : pendiente ? (
+                          <span className="text-xs font-medium text-amber-400/90 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+                            Pendiente
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-gray-400 bg-gray-700/50 px-3 py-1 rounded-full">
+                            Finalizado
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Cuerpo de la tarjeta: Enfrentamiento y Marcador */}
+                      <div className="flex items-center justify-between gap-4 my-2">
+                        {/* Equipo A */}
+                        <div className="flex-1 text-center sm:text-left">
+                          <p className="text-lg sm:text-xl font-bold tracking-tight text-white truncate" title={partido.equipo_a}>
+                            {partido.equipo_a}
+                          </p>
+                          <span className="text-xs text-gray-400 block mt-0.5">Local</span>
+                        </div>
+
+                        {/* Marcador Central */}
+                        <div className="flex items-center justify-center px-4 py-2 bg-gray-900/80 rounded-xl border border-gray-800/80 min-w-[130px]">
+                          {enJuego ? (
+                            <div className="flex items-center gap-2 text-5xl sm:text-6xl font-black text-white tracking-tight">
+                              <span className="text-emerald-400">{partido.marcador_a}</span>
+                              <span className="text-gray-600 text-3xl font-light select-none">-</span>
+                              <span className="text-emerald-400">{partido.marcador_b}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-2xl font-bold text-gray-600 select-none">
+                              <span>{partido.marcador_a}</span>
+                              <span className="text-gray-700">-</span>
+                              <span>{partido.marcador_b}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Equipo B */}
+                        <div className="flex-1 text-center sm:text-right">
+                          <p className="text-lg sm:text-xl font-bold tracking-tight text-white truncate" title={partido.equipo_b}>
+                            {partido.equipo_b}
+                          </p>
+                          <span className="text-xs text-gray-400 block mt-0.5">Visitante</span>
+                        </div>
+                      </div>
+
+                      {/* Pie de tarjeta con estado o detalles adicionales */}
+                      {pendiente && (
+                        <div className="mt-5 pt-3 border-t border-gray-800/80 text-center">
+                          <p className="text-xs text-gray-400 italic">
+                            Partido programado para la fase {partido.fase}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))
+        )}
+      </main>
+    </div>
+  );
+};
