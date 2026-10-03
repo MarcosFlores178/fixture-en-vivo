@@ -25,7 +25,7 @@ export const getDeporteLabel = (dep: string): string => {
 // Solo se monta cuando autorizado === true, garantizando cero peticiones si el PIN falla.
 const PanelAdminContenido: React.FC = () => {
   const { partidos, isLoading: isLoadingPartidos, error: errorPartidos, mutate: mutatePartidos } = usePartidos();
-  const { equipos, isLoading: isLoadingEquipos, error: errorEquipos, mutate: mutateEquipos } = useEquipos();
+  const { equipos, isLoading: isLoadingEquipos, error: errorEquipos, mutate: mutateEquipos, eliminarEquipo } = useEquipos();
   const { campeones, isLoading: isLoadingCampeones, mutate: mutateCampeones } = useCampeones();
 
   // ================= ESTADO DE GESTIÓN DE EQUIPOS =================
@@ -454,15 +454,29 @@ const PanelAdminContenido: React.FC = () => {
           {/* Badges de equipos registrados */}
           {equipos.length > 0 && (
             <div className="mt-5 pt-4 border-t border-slate-100">
-              <p className="text-xs font-semibold text-slate-500 mb-2">Catálogo disponible:</p>
+              <p className="text-xs font-semibold text-slate-500 mb-2">Equipos creados:</p>
               <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
-                {equipos.map((eq) => (
+                {equipos.map((equipo) => (
                   <span
-                    key={eq.id}
+                    key={equipo.id}
                     className="inline-flex items-center gap-1.5 text-xs bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg"
                   >
-                    <span className="font-semibold">{eq.nombre}</span>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">({getDeporteLabel(eq.deporte)})</span>
+                    <span className="font-semibold">{equipo.nombre}</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">
+                      ({getDeporteLabel(equipo.deporte)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('¿Estás seguro de eliminar este equipo?')) {
+                          eliminarEquipo(equipo.id);
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 font-bold text-xs ml-0.5 px-1 py-0.5 rounded transition cursor-pointer"
+                      title="Eliminar equipo"
+                    >
+                      ✕
+                    </button>
                   </span>
                 ))}
               </div>

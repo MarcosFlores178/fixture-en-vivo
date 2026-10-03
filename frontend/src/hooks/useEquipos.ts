@@ -19,10 +19,30 @@ export const useEquipos = () => {
     revalidateOnFocus: true,
   });
 
+  const eliminarEquipo = async (id: number | string) => {
+    try {
+      const response = await fetch(`/api/equipos/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Error al eliminar el equipo');
+      }
+      // Actualizar el estado local para quitar el equipo de la lista
+      await mutate(
+        (current) => (current || []).filter((eq) => String(eq.id) !== String(id)),
+        { revalidate: true }
+      );
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   return {
     equipos: data ?? [],
     isLoading,
     error,
     mutate,
+    eliminarEquipo,
   };
 };

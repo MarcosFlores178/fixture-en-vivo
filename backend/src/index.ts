@@ -112,6 +112,19 @@ app.post('/api/equipos', async (req: Request, res: Response) => {
   }
 });
 
+// Eliminar un equipo por ID
+app.delete('/api/equipos/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.equipo.delete({
+      where: { id },
+    });
+    res.json({ message: 'Equipo eliminado exitosamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar el equipo' });
+  }
+});
+
 // ================= CAMPEONES =================
 
 // 6. Obtener todos los campeones
