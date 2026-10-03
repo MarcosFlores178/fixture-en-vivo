@@ -8,6 +8,13 @@ export interface Partido {
   equipo_b: string;
   marcador_a: string;
   marcador_b: string;
+  set1_a: number;
+  set2_a: number;
+  set3_a: number;
+  set1_b: number;
+  set2_b: number;
+  set3_b: number;
+  ganador?: string | null;
   estado: 'pendiente' | 'en_juego' | 'finalizado' | string;
 }
 
@@ -20,7 +27,6 @@ const fetcher = async (url: string): Promise<Partido[]> => {
 };
 
 export const usePartidos = () => {
-  // Ajusta la URL base según corresponda a tu entorno (ej. http://localhost:3001/api/partidos o /api/partidos con proxy)
   const endpoint = '/api/partidos';
 
   const { data, error, isLoading, mutate } = useSWR<Partido[]>(endpoint, fetcher, {

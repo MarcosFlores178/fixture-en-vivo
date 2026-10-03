@@ -4,6 +4,11 @@ import { usePartidos, Partido } from '../hooks/usePartidos';
 export const VistaPublica: React.FC = () => {
   const { partidos, isLoading, error } = usePartidos();
 
+  // Función para determinar si el partido corresponde a Pádel
+  const esPadel = (dep: string) => {
+    return dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'padel';
+  };
+
   // Agrupamiento dinámico por deporte
   const partidosPorDeporte = useMemo(() => {
     return partidos.reduce<Record<string, Partido[]>>((acc, partido) => {
@@ -48,7 +53,7 @@ export const VistaPublica: React.FC = () => {
             Fixture en Vivo
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Tablero de marcadores actualizado automáticamente cada 5 segundos
+            Tablero en directo para Fútbol 5 y Pádel actualizado cada 5 segundos
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 bg-gray-800/80 px-4 py-2 rounded-full border border-gray-700 w-fit">
@@ -57,7 +62,7 @@ export const VistaPublica: React.FC = () => {
         </div>
       </header>
 
-      {/* Contenedor de Deportes */}
+      {/* Secciones por Deporte */}
       <main className="max-w-7xl mx-auto space-y-12">
         {deportes.length === 0 ? (
           <div className="text-center py-20 bg-gray-800/40 rounded-2xl border border-gray-800">
@@ -77,10 +82,15 @@ export const VistaPublica: React.FC = () => {
               </div>
 
               {/* Grid de Tarjetas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {partidosPorDeporte[deporte].map((partido) => {
                   const enJuego = partido.estado === 'en_juego';
                   const pendiente = partido.estado === 'pendiente';
+                  const finalizado = partido.estado === 'finalizado';
+                  const esDeportePadel = esPadel(partido.deporte);
+
+                  const esGanadorA = finalizado && partido.ganador === partido.equipo_a;
+                  const esGanadorB = finalizado && partido.ganador === partido.equipo_b;
 
                   return (
                     <div
@@ -88,11 +98,13 @@ export const VistaPublica: React.FC = () => {
                       className={`relative overflow-hidden rounded-2xl p-6 transition-all duration-300 border ${
                         enJuego
                           ? 'bg-gray-800/90 border-emerald-500/50 shadow-xl shadow-emerald-500/10'
-                          : 'bg-gray-800/40 border-gray-800 hover:border-gray-700'
+                          : finalizado
+                          ? 'bg-gray-800/40 border-amber-500/30'
+                          : 'bg-gray-800/30 border-gray-800 hover:border-gray-700'
                       }`}
                     >
-                      {/* Barra superior de la tarjeta: Fase y Estado */}
-                      <div className="flex items-center justify-between mb-6">
+                      {/* Cabecera de la tarjeta: Fase y Estado */}
+                      <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-700/60">
                         <span className="text-xs font-semibold tracking-wider uppercase text-gray-400 bg-gray-900/60 px-3 py-1 rounded-md border border-gray-800">
                           {partido.fase}
                         </span>
@@ -104,59 +116,194 @@ export const VistaPublica: React.FC = () => {
                               EN VIVO
                             </span>
                           </div>
-                        ) : pendiente ? (
+                        ) : finalizado ? (
+                          <div className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/40 px-3 py-1 rounded-full text-amber-300">
+                            <span className="text-xs font-extrabold tracking-wider">FINALIZADO</span>
+                          </div>
+                        ) : (
                           <span className="text-xs font-medium text-amber-400/90 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
                             Pendiente
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium text-gray-400 bg-gray-700/50 px-3 py-1 rounded-full">
-                            Finalizado
                           </span>
                         )}
                       </div>
 
-                      {/* Cuerpo de la tarjeta: Enfrentamiento y Marcador */}
-                      <div className="flex items-center justify-between gap-4 my-2">
-                        {/* Equipo A */}
-                        <div className="flex-1 text-center sm:text-left">
-                          <p className="text-lg sm:text-xl font-bold tracking-tight text-white truncate" title={partido.equipo_a}>
-                            {partido.equipo_a}
-                          </p>
-                          <span className="text-xs text-gray-400 block mt-0.5">Local</span>
-                        </div>
-
-                        {/* Marcador Central */}
-                        <div className="flex items-center justify-center px-4 py-2 bg-gray-900/80 rounded-xl border border-gray-800/80 min-w-[130px]">
-                          {enJuego ? (
-                            <div className="flex items-center gap-2 text-5xl sm:text-6xl font-black text-white tracking-tight">
-                              <span className="text-emerald-400">{partido.marcador_a}</span>
-                              <span className="text-gray-600 text-3xl font-light select-none">-</span>
-                              <span className="text-emerald-400">{partido.marcador_b}</span>
+                      {/* CUERPO DEL PARTIDO: CONDICIONAL SEGÚN DEPORTE */}
+                      {esDeportePadel ? (
+                        /* ===================== VISTA PÁDEL ===================== */
+                        <div className="space-y-4">
+                          {/* Tabla de Sets */}
+                          <div className="bg-gray-900/90 rounded-2xl border border-gray-800/90 p-4">
+                            <div className="grid grid-cols-12 gap-2 text-xs font-bold text-gray-400 uppercase pb-2 border-b border-gray-800">
+                              <div className="col-span-6">Pareja / Jugadores</div>
+                              <div className="col-span-2 text-center">Set 1</div>
+                              <div className="col-span-2 text-center">Set 2</div>
+                              <div className="col-span-2 text-center">Set 3</div>
                             </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-2xl font-bold text-gray-600 select-none">
-                              <span>{partido.marcador_a}</span>
-                              <span className="text-gray-700">-</span>
-                              <span>{partido.marcador_b}</span>
+
+                            {/* Fila Equipo A */}
+                            <div className="grid grid-cols-12 items-center gap-2 py-3 border-b border-gray-800/60">
+                              <div className="col-span-6 flex items-center gap-2">
+                                <span
+                                  className={`text-base sm:text-lg font-bold truncate ${
+                                    esGanadorA
+                                      ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]'
+                                      : 'text-white'
+                                  }`}
+                                  title={partido.equipo_a}
+                                >
+                                  {partido.equipo_a}
+                                </span>
+                                {esGanadorA && <span className="text-xl" title="Ganador">👑</span>}
+                              </div>
+
+                              <div className="col-span-2 text-center">
+                                <span className={`text-2xl sm:text-3xl font-black ${
+                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {partido.set1_a ?? 0}
+                                </span>
+                              </div>
+                              <div className="col-span-2 text-center">
+                                <span className={`text-2xl sm:text-3xl font-black ${
+                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {partido.set2_a ?? 0}
+                                </span>
+                              </div>
+                              <div className="col-span-2 text-center">
+                                <span className={`text-2xl sm:text-3xl font-black ${
+                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {partido.set3_a ?? 0}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Fila Equipo B */}
+                            <div className="grid grid-cols-12 items-center gap-2 py-3 pt-4">
+                              <div className="col-span-6 flex items-center gap-2">
+                                <span
+                                  className={`text-base sm:text-lg font-bold truncate ${
+                                    esGanadorB
+                                      ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]'
+                                      : 'text-white'
+                                  }`}
+                                  title={partido.equipo_b}
+                                >
+                                  {partido.equipo_b}
+                                </span>
+                                {esGanadorB && <span className="text-xl" title="Ganador">👑</span>}
+                              </div>
+
+                              <div className="col-span-2 text-center">
+                                <span className={`text-2xl sm:text-3xl font-black ${
+                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {partido.set1_b ?? 0}
+                                </span>
+                              </div>
+                              <div className="col-span-2 text-center">
+                                <span className={`text-2xl sm:text-3xl font-black ${
+                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {partido.set2_b ?? 0}
+                                </span>
+                              </div>
+                              <div className="col-span-2 text-center">
+                                <span className={`text-2xl sm:text-3xl font-black ${
+                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {partido.set3_b ?? 0}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Mensaje de ganador si está finalizado */}
+                          {finalizado && partido.ganador && (
+                            <div className="mt-3 text-center bg-amber-500/10 border border-amber-500/30 rounded-xl py-2 px-3">
+                              <p className="text-xs text-amber-300 font-semibold flex items-center justify-center gap-1.5">
+                                👑 Ganador del partido: <span className="font-extrabold text-amber-400">{partido.ganador}</span>
+                              </p>
                             </div>
                           )}
                         </div>
+                      ) : (
+                        /* ===================== VISTA FÚTBOL ===================== */
+                        <div>
+                          <div className="flex items-center justify-between gap-4 my-2">
+                            {/* Equipo A */}
+                            <div className="flex-1 text-center sm:text-left">
+                              <div className="flex items-center gap-1.5 sm:justify-start justify-center">
+                                {esGanadorA && <span className="text-xl">👑</span>}
+                                <p
+                                  className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
+                                    esGanadorA ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'text-white'
+                                  }`}
+                                  title={partido.equipo_a}
+                                >
+                                  {partido.equipo_a}
+                                </p>
+                              </div>
+                              <span className="text-xs text-gray-400 block mt-0.5">Local</span>
+                            </div>
 
-                        {/* Equipo B */}
-                        <div className="flex-1 text-center sm:text-right">
-                          <p className="text-lg sm:text-xl font-bold tracking-tight text-white truncate" title={partido.equipo_b}>
-                            {partido.equipo_b}
-                          </p>
-                          <span className="text-xs text-gray-400 block mt-0.5">Visitante</span>
-                        </div>
-                      </div>
+                            {/* Marcador Central Gigante */}
+                            <div className="flex items-center justify-center px-4 py-2 bg-gray-900/80 rounded-xl border border-gray-800/80 min-w-[130px]">
+                              {enJuego ? (
+                                <div className="flex items-center gap-2 text-5xl sm:text-6xl font-black text-white tracking-tight">
+                                  <span className="text-emerald-400">{partido.marcador_a}</span>
+                                  <span className="text-gray-600 text-3xl font-light select-none">-</span>
+                                  <span className="text-emerald-400">{partido.marcador_b}</span>
+                                </div>
+                              ) : finalizado ? (
+                                <div className="flex items-center gap-2 text-4xl sm:text-5xl font-black text-gray-200 tracking-tight">
+                                  <span className={esGanadorA ? 'text-amber-400' : 'text-gray-300'}>{partido.marcador_a}</span>
+                                  <span className="text-gray-600 text-3xl font-light select-none">-</span>
+                                  <span className={esGanadorB ? 'text-amber-400' : 'text-gray-300'}>{partido.marcador_b}</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-2xl font-bold text-gray-600 select-none">
+                                  <span>{partido.marcador_a}</span>
+                                  <span className="text-gray-700">-</span>
+                                  <span>{partido.marcador_b}</span>
+                                </div>
+                              )}
+                            </div>
 
-                      {/* Pie de tarjeta con estado o detalles adicionales */}
-                      {pendiente && (
-                        <div className="mt-5 pt-3 border-t border-gray-800/80 text-center">
-                          <p className="text-xs text-gray-400 italic">
-                            Partido programado para la fase {partido.fase}
-                          </p>
+                            {/* Equipo B */}
+                            <div className="flex-1 text-center sm:text-right">
+                              <div className="flex items-center gap-1.5 sm:justify-end justify-center">
+                                <p
+                                  className={`text-lg sm:text-xl font-bold tracking-tight truncate ${
+                                    esGanadorB ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'text-white'
+                                  }`}
+                                  title={partido.equipo_b}
+                                >
+                                  {partido.equipo_b}
+                                </p>
+                                {esGanadorB && <span className="text-xl">👑</span>}
+                              </div>
+                              <span className="text-xs text-gray-400 block mt-0.5">Visitante</span>
+                            </div>
+                          </div>
+
+                          {/* Mensaje de ganador o pendiente */}
+                          {finalizado && partido.ganador && (
+                            <div className="mt-4 text-center bg-amber-500/10 border border-amber-500/30 rounded-xl py-2 px-3">
+                              <p className="text-xs text-amber-300 font-semibold flex items-center justify-center gap-1.5">
+                                👑 Ganador del encuentro: <span className="font-extrabold text-amber-400">{partido.ganador}</span>
+                              </p>
+                            </div>
+                          )}
+
+                          {pendiente && (
+                            <div className="mt-4 pt-3 border-t border-gray-800/80 text-center">
+                              <p className="text-xs text-gray-400 italic">
+                                Partido programado para la fase {partido.fase}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

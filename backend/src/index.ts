@@ -13,7 +13,9 @@ app.use(express.json());
 // 1. Obtener todos los partidos
 app.get('/api/partidos', async (_req: Request, res: Response) => {
   try {
-    const partidos = await prisma.partido.findMany();
+    const partidos = await prisma.partido.findMany({
+      orderBy: { id: 'asc' },
+    });
     res.json(partidos);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener los partidos' });
@@ -38,19 +40,38 @@ app.post('/api/partidos', async (req: Request, res: Response) => {
   }
 });
 
-// 3. Actualizar marcador y estado de un partido
+// 3. Actualizar marcador, sets, ganador y estado de un partido
 app.patch('/api/partidos/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { marcador_a, marcador_b, estado } = req.body;
+    const {
+      marcador_a,
+      marcador_b,
+      estado,
+      set1_a,
+      set2_a,
+      set3_a,
+      set1_b,
+      set2_b,
+      set3_b,
+      ganador,
+    } = req.body;
+
+    const data: any = {};
+    if (marcador_a !== undefined) data.marcador_a = String(marcador_a);
+    if (marcador_b !== undefined) data.marcador_b = String(marcador_b);
+    if (estado !== undefined) data.estado = String(estado);
+    if (ganador !== undefined) data.ganador = ganador;
+    if (set1_a !== undefined) data.set1_a = Number(set1_a);
+    if (set2_a !== undefined) data.set2_a = Number(set2_a);
+    if (set3_a !== undefined) data.set3_a = Number(set3_a);
+    if (set1_b !== undefined) data.set1_b = Number(set1_b);
+    if (set2_b !== undefined) data.set2_b = Number(set2_b);
+    if (set3_b !== undefined) data.set3_b = Number(set3_b);
 
     const partidoActualizado = await prisma.partido.update({
       where: { id },
-      data: {
-        ...(marcador_a !== undefined && { marcador_a }),
-        ...(marcador_b !== undefined && { marcador_b }),
-        ...(estado !== undefined && { estado }),
-      },
+      data,
     });
 
     res.json(partidoActualizado);

@@ -8,12 +8,19 @@ datasource db {
 }
 
 model Partido {
-  id         String @id @default(uuid())
+  id         String   @id @default(uuid())
   deporte    String
   fase       String
   equipo_a   String
   equipo_b   String
-  marcador_a String @default("0")
-  marcador_b String @default("0")
-  estado     String @default("pendiente")
+  marcador_a String   @default("0")
+  marcador_b String   @default("0")
+  set1_a     Int      @default(0)
+  set2_a     Int      @default(0)
+  set3_a     Int      @default(0)
+  set1_b     Int      @default(0)
+  set2_b     Int      @default(0)
+  set3_b     Int      @default(0)
+  ganador    String?
+  estado     String   @default("pendiente")
 }
