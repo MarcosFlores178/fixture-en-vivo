@@ -501,11 +501,11 @@ const PanelAdminContenido: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Fase / Horario *
+                Fase / Cancha / Horario *
               </label>
               <input
                 type="text"
-                placeholder="Ej. Fecha 1 - 20:30"
+                placeholder="Ej. Fecha 1 - Cancha 1 - 20:30"
                 value={fase}
                 onChange={(e) => setFase(e.target.value)}
                 required
