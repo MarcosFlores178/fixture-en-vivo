@@ -1,36 +1,101 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePartidos, Partido } from '../hooks/usePartidos';
+import { useEquipos, Equipo } from '../hooks/useEquipos';
 
 export const PanelAdmin: React.FC = () => {
-  const { partidos, isLoading, error, mutate } = usePartidos();
+  const { partidos, isLoading: isLoadingPartidos, error: errorPartidos, mutate: mutatePartidos } = usePartidos();
+  const { equipos, isLoading: isLoadingEquipos, error: errorEquipos, mutate: mutateEquipos } = useEquipos();
 
-  // Estado del formulario de creación
+  // ================= ESTADO DE GESTIÓN DE EQUIPOS =================
+  const [nombreEquipo, setNombreEquipo] = useState('');
+  const [deporteEquipo, setDeporteEquipo] = useState<'Fútbol 5' | 'Pádel'>('Fútbol 5');
+  const [isSubmittingEquipo, setIsSubmittingEquipo] = useState(false);
+  const [equipoFormError, setEquipoFormError] = useState<string | null>(null);
+  const [equipoFormSuccess, setEquipoFormSuccess] = useState<string | null>(null);
+
+  // ================= ESTADO DE CREACIÓN DE PARTIDOS =================
   const [deporte, setDeporte] = useState<'Fútbol 5' | 'Pádel'>('Fútbol 5');
   const [fase, setFase] = useState('');
   const [equipoA, setEquipoA] = useState('');
   const [equipoB, setEquipoB] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmittingPartido, setIsSubmittingPartido] = useState(false);
+  const [partidoFormError, setPartidoFormError] = useState<string | null>(null);
 
-  // Estado para retroalimentación visual de actualización
+  // Retroalimentación visual de actualización de partidos
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // Función para determinar si es Pádel
+  // Normalizar detección de pádel
   const esPadel = (dep: string) => {
     return dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'padel';
   };
 
-  // Crear nuevo partido (POST /api/partidos)
-  const handleCrearPartido = async (e: React.FormEvent) => {
+  // Filtrar catálogo de equipos por el deporte seleccionado para el partido
+  const equiposFiltrados = useMemo(() => {
+    return equipos.filter((eq) => esPadel(eq.deporte) === esPadel(deporte));
+  }, [equipos, deporte]);
+
+  // Cambiar deporte del partido y resetear selecciones de equipos
+  const handleCambioDeporte = (nuevoDeporte: 'Fútbol 5' | 'Pádel') => {
+    setDeporte(nuevoDeporte);
+    setEquipoA('');
+    setEquipoB('');
+  };
+
+  // 1. Guardar nuevo Equipo (POST /api/equipos)
+  const handleCrearEquipo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fase.trim() || !equipoA.trim() || !equipoB.trim()) {
-      setFormError('Por favor completa todos los campos requeridos.');
+    if (!nombreEquipo.trim()) {
+      setEquipoFormError('Ingresa un nombre para el equipo o pareja.');
       return;
     }
 
     try {
-      setIsSubmitting(true);
-      setFormError(null);
+      setIsSubmittingEquipo(true);
+      setEquipoFormError(null);
+      setEquipoFormSuccess(null);
+
+      const res = await fetch('/api/equipos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: nombreEquipo.trim(),
+          deporte: deporteEquipo,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
+
+      setNombreEquipo('');
+      setEquipoFormSuccess('¡Equipo registrado con éxito!');
+      await mutateEquipos();
+
+      // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => setEquipoFormSuccess(null), 3000);
+    } catch (err: any) {
+      setEquipoFormError(err.message || 'Error al guardar el equipo');
+    } finally {
+      setIsSubmittingEquipo(false);
+    }
+  };
+
+  // 2. Crear nuevo Partido (POST /api/partidos)
+  const handleCrearPartido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fase.trim() || !equipoA || !equipoB) {
+      setPartidoFormError('Por favor completa todos los campos requeridos.');
+      return;
+    }
+
+    if (equipoA === equipoB) {
+      setPartidoFormError('El Equipo A y el Equipo B deben ser distintos.');
+      return;
+    }
+
+    try {
+      setIsSubmittingPartido(true);
+      setPartidoFormError(null);
 
       const res = await fetch('/api/partidos', {
         method: 'POST',
@@ -38,8 +103,8 @@ export const PanelAdmin: React.FC = () => {
         body: JSON.stringify({
           deporte,
           fase: fase.trim(),
-          equipo_a: equipoA.trim(),
-          equipo_b: equipoB.trim(),
+          equipo_a: equipoA,
+          equipo_b: equipoB,
         }),
       });
 
@@ -50,24 +115,20 @@ export const PanelAdmin: React.FC = () => {
       setFase('');
       setEquipoA('');
       setEquipoB('');
-      await mutate();
+      await mutatePartidos();
     } catch (err: any) {
-      setFormError(err.message || 'Error al crear el partido');
+      setPartidoFormError(err.message || 'Error al crear el partido');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingPartido(false);
     }
   };
 
-  // Actualizar cualquier campo (PATCH /api/partidos/:id + mutate)
-  const handleActualizar = async (
-    id: string,
-    updates: Partial<Partido>
-  ) => {
+  // 3. Actualizar partido (PATCH /api/partidos/:id + mutate)
+  const handleActualizar = async (id: string, updates: Partial<Partido>) => {
     try {
       setUpdatingId(id);
 
-      // Mutación optimista en el cliente
-      mutate(
+      mutatePartidos(
         partidos.map((p) => (p.id === id ? { ...p, ...updates } : p)),
         false
       );
@@ -82,21 +143,17 @@ export const PanelAdmin: React.FC = () => {
         throw new Error('Error al actualizar en el servidor');
       }
 
-      await mutate();
+      await mutatePartidos();
     } catch (err) {
       console.error('Error al actualizar:', err);
-      await mutate();
+      await mutatePartidos();
     } finally {
       setUpdatingId(null);
     }
   };
 
-  // Ajuste rápido de goles para Fútbol (+1 / -1)
-  const modificarMarcador = (
-    partido: Partido,
-    equipo: 'a' | 'b',
-    delta: number
-  ) => {
+  // Modificar marcador de fútbol (+1 / -1)
+  const modificarMarcador = (partido: Partido, equipo: 'a' | 'b', delta: number) => {
     const clave = equipo === 'a' ? 'marcador_a' : 'marcador_b';
     const valorActual = parseInt(partido[clave], 10) || 0;
     const nuevoValor = Math.max(0, valorActual + delta).toString();
@@ -104,7 +161,7 @@ export const PanelAdmin: React.FC = () => {
     handleActualizar(partido.id, { [clave]: nuevoValor });
   };
 
-  // Ajuste rápido de sets para Pádel (+1 / -1)
+  // Modificar set de pádel (+1 / -1)
   const modificarSet = (
     partido: Partido,
     setKey: 'set1_a' | 'set2_a' | 'set3_a' | 'set1_b' | 'set2_b' | 'set3_b',
@@ -119,7 +176,7 @@ export const PanelAdmin: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 p-4 sm:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Cabecera */}
+        {/* Cabecera Principal */}
         <header className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -127,11 +184,11 @@ export const PanelAdmin: React.FC = () => {
                 Admin
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Panel de Control de Partidos
+                Panel de Control de Fixture
               </h1>
             </div>
             <p className="text-slate-500 text-sm mt-1">
-              Gestión visual para Fútbol 5 (goles) y Pádel (tabla de sets 1, 2 y 3 con definición de ganador).
+              Administra el catálogo de equipos, programa partidos y carga resultados en directo.
             </p>
           </div>
           <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 w-fit">
@@ -140,27 +197,118 @@ export const PanelAdmin: React.FC = () => {
           </div>
         </header>
 
-        {/* Formulario de Alta */}
+        {/* ================= SECCIÓN: GESTIÓN DE EQUIPOS ================= */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-indigo-600" />
+              Gestión de Equipos
+            </h2>
+            <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-semibold">
+              {equipos.length} {equipos.length === 1 ? 'equipo registrado' : 'equipos registrados'}
+            </span>
+          </div>
+
+          {equipoFormError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
+              {equipoFormError}
+            </div>
+          )}
+
+          {equipoFormSuccess && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl">
+              {equipoFormSuccess}
+            </div>
+          )}
+
+          <form onSubmit={handleCrearEquipo} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            <div className="sm:col-span-6">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Nombre del Equipo o Pareja *
+              </label>
+              <input
+                type="text"
+                placeholder="Ej. Los Leones o Galán / Chingotto"
+                value={nombreEquipo}
+                onChange={(e) => setNombreEquipo(e.target.value)}
+                required
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              />
+            </div>
+
+            <div className="sm:col-span-3">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Deporte *
+              </label>
+              <select
+                value={deporteEquipo}
+                onChange={(e) => setDeporteEquipo(e.target.value as 'Fútbol 5' | 'Pádel')}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              >
+                <option value="Fútbol 5">Fútbol 5</option>
+                <option value="Pádel">Pádel</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-3">
+              <button
+                type="submit"
+                disabled={isSubmittingEquipo}
+                className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+              >
+                {isSubmittingEquipo ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar Equipo'
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Badges de equipos ya registrados */}
+          {equipos.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500 mb-2">Catálogo disponible:</p>
+              <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
+                {equipos.map((eq) => (
+                  <span
+                    key={eq.id}
+                    className="inline-flex items-center gap-1.5 text-xs bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg"
+                  >
+                    <span className="font-semibold">{eq.nombre}</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">({eq.deporte})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ================= SECCIÓN: CREAR NUEVO PARTIDO ================= */}
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
             <span className="text-indigo-600 text-xl font-black">+</span>
             Crear Nuevo Partido
           </h2>
 
-          {formError && (
+          {partidoFormError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
-              {formError}
+              {partidoFormError}
             </div>
           )}
 
           <form onSubmit={handleCrearPartido} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Deporte */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Deporte *
               </label>
               <select
                 value={deporte}
-                onChange={(e) => setDeporte(e.target.value as 'Fútbol 5' | 'Pádel')}
+                onChange={(e) => handleCambioDeporte(e.target.value as 'Fútbol 5' | 'Pádel')}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="Fútbol 5">Fútbol 5</option>
@@ -168,6 +316,7 @@ export const PanelAdmin: React.FC = () => {
               </select>
             </div>
 
+            {/* Fase */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Fase / Horario *
@@ -182,64 +331,89 @@ export const PanelAdmin: React.FC = () => {
               />
             </div>
 
+            {/* Equipo A (<select> con datos de useEquipos filtrados) */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Equipo A (Local) *
               </label>
-              <input
-                type="text"
-                placeholder="Ej. Bela / Coello"
+              <select
                 value={equipoA}
                 onChange={(e) => setEquipoA(e.target.value)}
                 required
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">-- Selecciona Equipo A --</option>
+                {equiposFiltrados.map((eq) => (
+                  <option key={eq.id} value={eq.nombre}>
+                    {eq.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
 
+            {/* Equipo B (<select> con datos de useEquipos filtrados) */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Equipo B (Visitante) *
               </label>
-              <input
-                type="text"
-                placeholder="Ej. Galán / Chingotto"
+              <select
                 value={equipoB}
                 onChange={(e) => setEquipoB(e.target.value)}
                 required
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">-- Selecciona Equipo B --</option>
+                {equiposFiltrados.map((eq) => (
+                  <option key={eq.id} value={eq.nombre}>
+                    {eq.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {equiposFiltrados.length === 0 && (
+              <div className="md:col-span-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl">
+                ⚠️ No hay equipos de <strong>{deporte}</strong> registrados. Puedes crearlos en la sección <strong>Gestión de Equipos</strong> de arriba.
+              </div>
+            )}
 
             <div className="md:col-span-4 flex justify-end pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmittingPartido || equiposFiltrados.length === 0}
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2"
               >
-                {isSubmitting ? 'Creando...' : 'Crear Partido'}
+                {isSubmittingPartido ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Creando partido...
+                  </>
+                ) : (
+                  'Crear Partido'
+                )}
               </button>
             </div>
           </form>
         </section>
 
-        {/* Lista de Partidos */}
+        {/* ================= SECCIÓN: LISTA DE PARTIDOS ================= */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-900">
               Partidos Registrados ({partidos.length})
             </h2>
-            {isLoading && (
+            {isLoadingPartidos && (
               <span className="text-xs text-slate-500 animate-pulse">Sincronizando...</span>
             )}
           </div>
 
-          {error && (
+          {errorPartidos && (
             <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-              Error al consultar partidos: {error.message}
+              Error al consultar partidos: {errorPartidos.message}
             </div>
           )}
 
-          {partidos.length === 0 && !isLoading ? (
+          {partidos.length === 0 && !isLoadingPartidos ? (
             <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center text-slate-400">
               No hay partidos dados de alta aún.
             </div>
@@ -263,11 +437,13 @@ export const PanelAdmin: React.FC = () => {
                     {/* Barra de estado y deporte */}
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-100">
                       <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 text-xs font-extrabold rounded-lg uppercase tracking-wider ${
-                          esDeportePadel
-                            ? 'bg-sky-100 text-sky-800 border border-sky-200'
-                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                        }`}>
+                        <span
+                          className={`px-3 py-1 text-xs font-extrabold rounded-lg uppercase tracking-wider ${
+                            esDeportePadel
+                              ? 'bg-sky-100 text-sky-800 border border-sky-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          }`}
+                        >
                           {partido.deporte}
                         </span>
                         <span className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
@@ -307,7 +483,6 @@ export const PanelAdmin: React.FC = () => {
                     {esDeportePadel ? (
                       /* ===================== MODO PÁDEL ===================== */
                       <div className="space-y-4">
-                        {/* Tabla / Grilla de Pádel */}
                         <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 overflow-x-auto">
                           <table className="w-full text-left border-collapse min-w-[500px]">
                             <thead>
@@ -584,7 +759,7 @@ export const PanelAdmin: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Botones de Ganador Opcional para Fútbol si se quiere definir */}
+                        {/* Botones de Ganador para Fútbol */}
                         <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
                           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                             Declarar Ganador:

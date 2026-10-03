@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// ================= PARTIDOS =================
+
 // 1. Obtener todos los partidos
 app.get('/api/partidos', async (_req: Request, res: Response) => {
   try {
@@ -77,6 +79,36 @@ app.patch('/api/partidos/:id', async (req: Request, res: Response) => {
     res.json(partidoActualizado);
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar el partido' });
+  }
+});
+
+// ================= EQUIPOS =================
+
+// 4. Obtener todos los equipos
+app.get('/api/equipos', async (_req: Request, res: Response) => {
+  try {
+    const equipos = await prisma.equipo.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    res.json(equipos);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener los equipos' });
+  }
+});
+
+// 5. Crear un nuevo equipo
+app.post('/api/equipos', async (req: Request, res: Response) => {
+  try {
+    const { nombre, deporte } = req.body;
+    const nuevoEquipo = await prisma.equipo.create({
+      data: {
+        nombre,
+        deporte,
+      },
+    });
+    res.status(201).json(nuevoEquipo);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al crear el equipo' });
   }
 });
 

@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Equipo {
+  id      String @id @default(uuid())
+  nombre  String
+  deporte String
+}
+
 model Partido {
   id         String   @id @default(uuid())
   deporte    String
