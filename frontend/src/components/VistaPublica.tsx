@@ -2,26 +2,58 @@ import React, { useMemo } from 'react';
 import { usePartidos, Partido } from '../hooks/usePartidos';
 import { useCampeones, Campeon } from '../hooks/useCampeones';
 
+export type CategoriaDeporte = 'futbol_masculino' | 'futbol_femenino' | 'padel';
+
+interface SeccionDeporte {
+  id: CategoriaDeporte;
+  titulo: string;
+  esFutbol: boolean;
+}
+
+const SECCIONES: SeccionDeporte[] = [
+  { id: 'futbol_masculino', titulo: 'Fútbol 5 Masculino', esFutbol: true },
+  { id: 'futbol_femenino', titulo: 'Fútbol 5 Femenino', esFutbol: true },
+  { id: 'padel', titulo: 'Pádel', esFutbol: false },
+];
+
+export const normalizarDeporte = (dep: string): CategoriaDeporte => {
+  const d = dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (d.includes('fem')) return 'futbol_femenino';
+  if (d.includes('masc')) return 'futbol_masculino';
+  if (d.includes('padel')) return 'padel';
+  if (d.includes('futbol')) return 'futbol_masculino';
+  return 'futbol_masculino';
+};
+
 export const VistaPublica: React.FC = () => {
   const { partidos, isLoading, error } = usePartidos();
   const { campeones } = useCampeones();
 
-  // Función para determinar si el partido corresponde a Pádel
-  const esPadel = (dep: string) => {
-    return dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'padel';
-  };
+  // Agrupamiento por las 3 categorías deportivas oficiales
+  const partidosPorCategoria = useMemo(() => {
+    const grupos: Record<CategoriaDeporte, Partido[]> = {
+      futbol_masculino: [],
+      futbol_femenino: [],
+      padel: [],
+    };
 
-  // Agrupamiento dinámico por deporte
-  const partidosPorDeporte = useMemo(() => {
-    return partidos.reduce<Record<string, Partido[]>>((acc, partido) => {
-      const dep = partido.deporte || 'General';
-      if (!acc[dep]) {
-        acc[dep] = [];
-      }
-      acc[dep].push(partido);
-      return acc;
-    }, {});
+    for (const partido of partidos) {
+      const cat = normalizarDeporte(partido.deporte);
+      grupos[cat].push(partido);
+    }
+
+    return grupos;
   }, [partidos]);
+
+  // Mapa de campeones por categoría
+  const campeonPorCategoria = useMemo(() => {
+    const map: Partial<Record<CategoriaDeporte, Campeon>> = {};
+    for (const c of campeones) {
+      const cat = normalizarDeporte(c.deporte);
+      map[cat] = c;
+    }
+    return map;
+  }, [campeones]);
 
   if (isLoading) {
     return (
@@ -43,8 +75,6 @@ export const VistaPublica: React.FC = () => {
     );
   }
 
-  const deportes = Object.keys(partidosPorDeporte);
-
   return (
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4 sm:px-8 lg:px-12 font-sans">
       {/* Encabezado Principal */}
@@ -55,7 +85,7 @@ export const VistaPublica: React.FC = () => {
             Fixture en Vivo
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Tablero en directo para Fútbol 5 y Pádel actualizado cada 5 segundos
+            Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel sincronizados cada 5 segundos
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 bg-gray-800/80 px-4 py-2 rounded-full border border-gray-700 w-fit">
@@ -64,58 +94,45 @@ export const VistaPublica: React.FC = () => {
         </div>
       </header>
 
-      {/* Secciones por Deporte */}
-      <main className="max-w-7xl mx-auto space-y-12">
-        {deportes.length === 0 ? (
-          <div className="space-y-8">
-            <div className="text-center py-20 bg-gray-800/40 rounded-2xl border border-gray-800">
-              <p className="text-gray-400 text-lg">No hay partidos programados en este momento.</p>
-            </div>
-            {/* Si no hay partidos pero ya hay campeones coronados */}
-            {campeones.length > 0 && (
-              <div className="space-y-6">
-                {campeones.map((c) => (
-                  <div
-                    key={c.id}
-                    className="mt-10 p-8 rounded-2xl text-center shadow-2xl shadow-yellow-500/40 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 transform hover:scale-105 transition-transform"
-                  >
-                    <p className="text-yellow-900 font-black tracking-widest text-xl mb-4">
-                      🏆 CAMPEÓN DE {c.deporte.toUpperCase()} 🏆
-                    </p>
-                    <h3 className="text-6xl font-extrabold text-white drop-shadow-lg">
-                      {c.equipo_nombre}
-                    </h3>
-                  </div>
-                ))}
+      {/* Renderizado de las 3 Secciones de Deportes */}
+      <main className="max-w-7xl mx-auto space-y-16">
+        {SECCIONES.map((seccion) => {
+          const partidosSeccion = partidosPorCategoria[seccion.id];
+          const campeonSeccion = campeonPorCategoria[seccion.id];
+
+          return (
+            <section key={seccion.id} className="space-y-6">
+              {/* Título de la Sección */}
+              <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
+                <span
+                  className={`w-3 h-8 rounded-full inline-block ${
+                    seccion.id === 'futbol_masculino'
+                      ? 'bg-emerald-500'
+                      : seccion.id === 'futbol_femenino'
+                      ? 'bg-fuchsia-500'
+                      : 'bg-sky-500'
+                  }`}
+                />
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-wide uppercase text-gray-100">
+                  {seccion.titulo}
+                </h2>
+                <span className="text-xs bg-gray-800 text-gray-300 px-3 py-1 rounded-full font-semibold border border-gray-700 ml-auto">
+                  {partidosSeccion.length} {partidosSeccion.length === 1 ? 'partido' : 'partidos'}
+                </span>
               </div>
-            )}
-          </div>
-        ) : (
-          deportes.map((deporte) => {
-            // Verificar si existe campeón para este deporte
-            const campeonDeporte = campeones.find(
-              (c) => esPadel(c.deporte) === esPadel(deporte)
-            );
 
-            return (
-              <section key={deporte} className="space-y-6">
-                {/* Título de Deporte */}
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold tracking-wide uppercase text-gray-200">
-                    {deporte}
-                  </h2>
-                  <span className="text-xs bg-gray-800 text-gray-300 px-3 py-1 rounded-full font-semibold border border-gray-700">
-                    {partidosPorDeporte[deporte].length} {partidosPorDeporte[deporte].length === 1 ? 'partido' : 'partidos'}
-                  </span>
+              {/* Lista de Partidos */}
+              {partidosSeccion.length === 0 ? (
+                <div className="text-center py-10 bg-gray-800/30 rounded-2xl border border-gray-800/80">
+                  <p className="text-gray-400 text-sm">No hay partidos programados para {seccion.titulo}.</p>
                 </div>
-
-                {/* Grid de Tarjetas */}
+              ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {partidosPorDeporte[deporte].map((partido) => {
+                  {partidosSeccion.map((partido) => {
                     const enJuego = partido.estado === 'en_juego';
                     const pendiente = partido.estado === 'pendiente';
                     const finalizado = partido.estado === 'finalizado';
-                    const esDeportePadel = esPadel(partido.deporte);
+                    const esPadelPartido = !seccion.esFutbol;
 
                     const esGanadorA = finalizado && partido.ganador === partido.equipo_a;
                     const esGanadorB = finalizado && partido.ganador === partido.equipo_b;
@@ -164,9 +181,9 @@ export const VistaPublica: React.FC = () => {
                           )}
                         </div>
 
-                        {/* CUERPO DEL PARTIDO: CONDICIONAL SEGÚN DEPORTE */}
-                        {esDeportePadel ? (
-                          /* ===================== VISTA PÁDEL ===================== */
+                        {/* CUERPO DEL PARTIDO SEGÚN DISCIPLINA */}
+                        {esPadelPartido ? (
+                          /* ===================== VISTA PÁDEL (3 SETS) ===================== */
                           <div className="space-y-4">
                             <div className="bg-gray-900/90 rounded-2xl border border-gray-800/90 p-4">
                               <div className="grid grid-cols-12 gap-2 text-xs font-bold text-gray-400 uppercase pb-2 border-b border-gray-800">
@@ -253,7 +270,7 @@ export const VistaPublica: React.FC = () => {
                             )}
                           </div>
                         ) : (
-                          /* ===================== VISTA FÚTBOL ===================== */
+                          /* ===================== VISTA FÚTBOL (MASCULINO Y FEMENINO) ===================== */
                           <div>
                             <div className="flex items-center justify-between gap-4 my-2">
                               {/* Equipo A */}
@@ -334,22 +351,22 @@ export const VistaPublica: React.FC = () => {
                     );
                   })}
                 </div>
+              )}
 
-                {/* Banner de Campeón Espectacular al final de la lista del deporte */}
-                {campeonDeporte && (
-                  <div className="mt-10 p-8 rounded-2xl text-center shadow-2xl shadow-yellow-500/40 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 transform hover:scale-105 transition-transform">
-                    <p className="text-yellow-900 font-black tracking-widest text-xl mb-4">
-                      🏆 CAMPEÓN DE {campeonDeporte.deporte.toUpperCase()} 🏆
-                    </p>
-                    <h3 className="text-6xl font-extrabold text-white drop-shadow-lg">
-                      {campeonDeporte.equipo_nombre}
-                    </h3>
-                  </div>
-                )}
-              </section>
-            );
-          })
-        )}
+              {/* Banner de Campeón Espectacular para esta categoría específica */}
+              {campeonSeccion && (
+                <div className="mt-10 p-8 rounded-2xl text-center shadow-2xl shadow-yellow-500/40 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 transform hover:scale-105 transition-transform">
+                  <p className="text-yellow-900 font-black tracking-widest text-xl mb-4">
+                    🏆 CAMPEÓN DE {seccion.titulo.toUpperCase()} 🏆
+                  </p>
+                  <h3 className="text-6xl font-extrabold text-white drop-shadow-lg">
+                    {campeonSeccion.equipo_nombre}
+                  </h3>
+                </div>
+              )}
+            </section>
+          );
+        })}
       </main>
     </div>
   );

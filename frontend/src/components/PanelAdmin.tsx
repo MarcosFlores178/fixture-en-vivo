@@ -3,6 +3,24 @@ import { usePartidos, Partido } from '../hooks/usePartidos';
 import { useEquipos, Equipo } from '../hooks/useEquipos';
 import { useCampeones, Campeon } from '../hooks/useCampeones';
 
+export type CategoriaDeporte = 'futbol_masculino' | 'futbol_femenino' | 'padel';
+
+export const normalizarDeporte = (dep: string): CategoriaDeporte => {
+  const d = dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (d.includes('fem')) return 'futbol_femenino';
+  if (d.includes('masc')) return 'futbol_masculino';
+  if (d.includes('padel')) return 'padel';
+  if (d.includes('futbol')) return 'futbol_masculino';
+  return 'futbol_masculino';
+};
+
+export const getDeporteLabel = (dep: string): string => {
+  const norm = normalizarDeporte(dep);
+  if (norm === 'futbol_masculino') return 'Fútbol 5 Masculino';
+  if (norm === 'futbol_femenino') return 'Fútbol 5 Femenino';
+  return 'Pádel';
+};
+
 // Componente interno que contiene la lógica y llamadas a la API.
 // Solo se monta cuando autorizado === true, garantizando cero peticiones si el PIN falla.
 const PanelAdminContenido: React.FC = () => {
@@ -12,13 +30,13 @@ const PanelAdminContenido: React.FC = () => {
 
   // ================= ESTADO DE GESTIÓN DE EQUIPOS =================
   const [nombreEquipo, setNombreEquipo] = useState('');
-  const [deporteEquipo, setDeporteEquipo] = useState<'Fútbol 5' | 'Pádel'>('Fútbol 5');
+  const [deporteEquipo, setDeporteEquipo] = useState<CategoriaDeporte>('futbol_masculino');
   const [isSubmittingEquipo, setIsSubmittingEquipo] = useState(false);
   const [equipoFormError, setEquipoFormError] = useState<string | null>(null);
   const [equipoFormSuccess, setEquipoFormSuccess] = useState<string | null>(null);
 
   // ================= ESTADO DE CREACIÓN DE PARTIDOS =================
-  const [deporte, setDeporte] = useState<'Fútbol 5' | 'Pádel'>('Fútbol 5');
+  const [deporte, setDeporte] = useState<CategoriaDeporte>('futbol_masculino');
   const [fase, setFase] = useState('');
   const [equipoA, setEquipoA] = useState('');
   const [equipoB, setEquipoB] = useState('');
@@ -28,33 +46,39 @@ const PanelAdminContenido: React.FC = () => {
   // Retroalimentación visual de actualización de partidos
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // ================= ESTADO DE CORONAR CAMPEONES =================
-  const [seleccionFutbol, setSeleccionFutbol] = useState<string>('');
+  // ================= ESTADO DE CORONAR CAMPEONES (3 CATEGORÍAS) =================
+  const [seleccionFutbolMasc, setSeleccionFutbolMasc] = useState<string>('');
+  const [seleccionFutbolFem, setSeleccionFutbolFem] = useState<string>('');
   const [seleccionPadel, setSeleccionPadel] = useState<string>('');
   const [savingCampeon, setSavingCampeon] = useState<string | null>(null);
   const [mensajeCampeon, setMensajeCampeon] = useState<string | null>(null);
 
-  // Normalizar detección de pádel
-  const esPadel = (dep: string) => {
-    return dep.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === 'padel';
-  };
-
-  // Campeones actuales registrados
-  const campeonFutbol = useMemo(
-    () => campeones.find((c) => !esPadel(c.deporte)),
+  // Campeones actuales registrados en BD
+  const campeonFutbolMasc = useMemo(
+    () => campeones.find((c) => normalizarDeporte(c.deporte) === 'futbol_masculino'),
+    [campeones]
+  );
+  const campeonFutbolFem = useMemo(
+    () => campeones.find((c) => normalizarDeporte(c.deporte) === 'futbol_femenino'),
     [campeones]
   );
   const campeonPadel = useMemo(
-    () => campeones.find((c) => esPadel(c.deporte)),
+    () => campeones.find((c) => normalizarDeporte(c.deporte) === 'padel'),
     [campeones]
   );
 
   // Inicializar selección con los datos existentes
   useEffect(() => {
-    if (campeonFutbol && !seleccionFutbol) {
-      setSeleccionFutbol(campeonFutbol.equipo_nombre);
+    if (campeonFutbolMasc && !seleccionFutbolMasc) {
+      setSeleccionFutbolMasc(campeonFutbolMasc.equipo_nombre);
     }
-  }, [campeonFutbol]);
+  }, [campeonFutbolMasc]);
+
+  useEffect(() => {
+    if (campeonFutbolFem && !seleccionFutbolFem) {
+      setSeleccionFutbolFem(campeonFutbolFem.equipo_nombre);
+    }
+  }, [campeonFutbolFem]);
 
   useEffect(() => {
     if (campeonPadel && !seleccionPadel) {
@@ -62,23 +86,27 @@ const PanelAdminContenido: React.FC = () => {
     }
   }, [campeonPadel]);
 
-  // Listas de equipos por deporte
-  const equiposFutbol = useMemo(
-    () => equipos.filter((eq) => !esPadel(eq.deporte)),
+  // Listas de equipos por categoría
+  const equiposFutbolMasc = useMemo(
+    () => equipos.filter((eq) => normalizarDeporte(eq.deporte) === 'futbol_masculino'),
+    [equipos]
+  );
+  const equiposFutbolFem = useMemo(
+    () => equipos.filter((eq) => normalizarDeporte(eq.deporte) === 'futbol_femenino'),
     [equipos]
   );
   const equiposPadel = useMemo(
-    () => equipos.filter((eq) => esPadel(eq.deporte)),
+    () => equipos.filter((eq) => normalizarDeporte(eq.deporte) === 'padel'),
     [equipos]
   );
 
-  // Filtrar catálogo de equipos por el deporte seleccionado para el nuevo partido
+  // Filtrar catálogo de equipos para el nuevo partido según el deporte seleccionado
   const equiposFiltrados = useMemo(() => {
-    return equipos.filter((eq) => esPadel(eq.deporte) === esPadel(deporte));
+    return equipos.filter((eq) => normalizarDeporte(eq.deporte) === normalizarDeporte(deporte));
   }, [equipos, deporte]);
 
   // Cambiar deporte del partido y resetear selecciones de equipos
-  const handleCambioDeporte = (nuevoDeporte: 'Fútbol 5' | 'Pádel') => {
+  const handleCambioDeporte = (nuevoDeporte: CategoriaDeporte) => {
     setDeporte(nuevoDeporte);
     setEquipoA('');
     setEquipoB('');
@@ -111,7 +139,7 @@ const PanelAdminContenido: React.FC = () => {
       }
 
       setNombreEquipo('');
-      setEquipoFormSuccess('¡Equipo registrado con éxito!');
+      setEquipoFormSuccess(`¡Equipo registrado en ${getDeporteLabel(deporteEquipo)} con éxito!`);
       await mutateEquipos();
 
       setTimeout(() => setEquipoFormSuccess(null), 3000);
@@ -216,19 +244,19 @@ const PanelAdminContenido: React.FC = () => {
   };
 
   // 4. Guardar Campeón (POST /api/campeones con upsert)
-  const handleGuardarCampeon = async (deporteNombre: 'Fútbol 5' | 'Pádel', equipoSeleccionado: string) => {
+  const handleGuardarCampeon = async (deporteKey: CategoriaDeporte, nombreLabel: string, equipoSeleccionado: string) => {
     if (!equipoSeleccionado) {
-      alert(`Selecciona un equipo para coronar como campeón de ${deporteNombre}.`);
+      alert(`Selecciona un equipo para coronar como campeón de ${nombreLabel}.`);
       return;
     }
 
     try {
-      setSavingCampeon(deporteNombre);
+      setSavingCampeon(deporteKey);
       const res = await fetch('/api/campeones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          deporte: deporteNombre,
+          deporte: deporteKey,
           equipo_nombre: equipoSeleccionado,
         }),
       });
@@ -238,7 +266,7 @@ const PanelAdminContenido: React.FC = () => {
       }
 
       await mutateCampeones();
-      setMensajeCampeon(`¡Campeón de ${deporteNombre} actualizado a "${equipoSeleccionado}"!`);
+      setMensajeCampeon(`¡Campeón de ${nombreLabel} actualizado a "${equipoSeleccionado}"!`);
       setTimeout(() => setMensajeCampeon(null), 3500);
     } catch (err: any) {
       alert(err.message || 'Error al guardar campeón');
@@ -262,7 +290,7 @@ const PanelAdminContenido: React.FC = () => {
               </h1>
             </div>
             <p className="text-slate-500 text-sm mt-1">
-              Sesión autenticada. Administra equipos, programa partidos, actualiza marcadores y corona campeones.
+              Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel: equipos, programación, marcadores en vivo y campeones.
             </p>
           </div>
           <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 w-fit">
@@ -302,7 +330,7 @@ const PanelAdminContenido: React.FC = () => {
               </label>
               <input
                 type="text"
-                placeholder="Ej. Los Leones o Galán / Chingotto"
+                placeholder="Ej. Los Leones, Las Leonas o Galán / Chingotto"
                 value={nombreEquipo}
                 onChange={(e) => setNombreEquipo(e.target.value)}
                 required
@@ -316,11 +344,12 @@ const PanelAdminContenido: React.FC = () => {
               </label>
               <select
                 value={deporteEquipo}
-                onChange={(e) => setDeporteEquipo(e.target.value as 'Fútbol 5' | 'Pádel')}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                onChange={(e) => setDeporteEquipo(e.target.value as CategoriaDeporte)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white font-medium"
               >
-                <option value="Fútbol 5">Fútbol 5</option>
-                <option value="Pádel">Pádel</option>
+                <option value="futbol_masculino">Fútbol 5 Masculino</option>
+                <option value="futbol_femenino">Fútbol 5 Femenino</option>
+                <option value="padel">Pádel</option>
               </select>
             </div>
 
@@ -353,7 +382,7 @@ const PanelAdminContenido: React.FC = () => {
                     className="inline-flex items-center gap-1.5 text-xs bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg"
                   >
                     <span className="font-semibold">{eq.nombre}</span>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold">({eq.deporte})</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">({getDeporteLabel(eq.deporte)})</span>
                   </span>
                 ))}
               </div>
@@ -381,11 +410,12 @@ const PanelAdminContenido: React.FC = () => {
               </label>
               <select
                 value={deporte}
-                onChange={(e) => handleCambioDeporte(e.target.value as 'Fútbol 5' | 'Pádel')}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onChange={(e) => handleCambioDeporte(e.target.value as CategoriaDeporte)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               >
-                <option value="Fútbol 5">Fútbol 5</option>
-                <option value="Pádel">Pádel</option>
+                <option value="futbol_masculino">Fútbol 5 Masculino</option>
+                <option value="futbol_femenino">Fútbol 5 Femenino</option>
+                <option value="padel">Pádel</option>
               </select>
             </div>
 
@@ -395,7 +425,7 @@ const PanelAdminContenido: React.FC = () => {
               </label>
               <input
                 type="text"
-                placeholder="Ej. Cuartos de final - 19:30"
+                placeholder="Ej. Fecha 1 - 20:30"
                 value={fase}
                 onChange={(e) => setFase(e.target.value)}
                 required
@@ -443,7 +473,7 @@ const PanelAdminContenido: React.FC = () => {
 
             {equiposFiltrados.length === 0 && (
               <div className="md:col-span-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl">
-                ⚠️ No hay equipos de <strong>{deporte}</strong> registrados. Puedes crearlos en la sección <strong>Gestión de Equipos</strong> de arriba.
+                ⚠️ No hay equipos registrados para <strong>{getDeporteLabel(deporte)}</strong>. Puedes crearlos en la sección <strong>Gestión de Equipos</strong> superior.
               </div>
             )}
 
@@ -491,7 +521,7 @@ const PanelAdminContenido: React.FC = () => {
             <div className="grid grid-cols-1 gap-6">
               {partidos.map((partido) => {
                 const isItemUpdating = updatingId === partido.id;
-                const esDeportePadel = esPadel(partido.deporte);
+                const esDeportePadel = normalizarDeporte(partido.deporte) === 'padel';
 
                 return (
                   <div
@@ -511,10 +541,12 @@ const PanelAdminContenido: React.FC = () => {
                           className={`px-3 py-1 text-xs font-extrabold rounded-lg uppercase tracking-wider ${
                             esDeportePadel
                               ? 'bg-sky-100 text-sky-800 border border-sky-200'
+                              : normalizarDeporte(partido.deporte) === 'futbol_femenino'
+                              ? 'bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200'
                               : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                           }`}
                         >
-                          {partido.deporte}
+                          {getDeporteLabel(partido.deporte)}
                         </span>
                         <span className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
                           {partido.fase}
@@ -767,7 +799,7 @@ const PanelAdminContenido: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      /* ===================== MODO FÚTBOL ===================== */
+                      /* ===================== MODO FÚTBOL (MASCULINO O FEMENINO) ===================== */
                       <div className="space-y-4">
                         <div className="flex items-center justify-center flex-wrap gap-4 sm:gap-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                           {/* Equipo A */}
@@ -866,7 +898,7 @@ const PanelAdminContenido: React.FC = () => {
           )}
         </section>
 
-        {/* ================= SECCIÓN: 👑 CORONAR CAMPEONES ================= */}
+        {/* ================= SECCIÓN: 👑 CORONAR CAMPEONES (3 CATEGORÍAS) ================= */}
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 pb-3 border-b border-slate-100">
             <div>
@@ -875,7 +907,7 @@ const PanelAdminContenido: React.FC = () => {
                 Coronar Campeones
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Define o actualiza a los campeones oficiales del torneo para Fútbol 5 y Pádel.
+                Define o actualiza a los campeones oficiales para Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel.
               </p>
             </div>
             {isLoadingCampeones && (
@@ -889,31 +921,31 @@ const PanelAdminContenido: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Bloque 1: Fútbol 5 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Bloque 1: Fútbol 5 Masculino */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-3 py-1 rounded-lg border border-emerald-200">
-                  ⚽ Fútbol 5
+                  ⚽ Fútbol Masculino
                 </span>
-                {campeonFutbol && (
-                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
-                    👑 Actual: {campeonFutbol.equipo_nombre}
+                {campeonFutbolMasc && (
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={campeonFutbolMasc.equipo_nombre}>
+                    👑 {campeonFutbolMasc.equipo_nombre}
                   </span>
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Seleccionar Equipo Campeón de Fútbol 5:
+                  Equipo Campeón Masculino:
                 </label>
                 <select
-                  value={seleccionFutbol || campeonFutbol?.equipo_nombre || ''}
-                  onChange={(e) => setSeleccionFutbol(e.target.value)}
+                  value={seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || ''}
+                  onChange={(e) => setSeleccionFutbolMasc(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="">-- Elige el Campeón de Fútbol 5 --</option>
-                  {equiposFutbol.map((eq) => (
+                  <option value="">-- Elige el Campeón --</option>
+                  {equiposFutbolMasc.map((eq) => (
                     <option key={eq.id} value={eq.nombre}>
                       {eq.nombre}
                     </option>
@@ -923,37 +955,78 @@ const PanelAdminContenido: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => handleGuardarCampeon('Fútbol 5', seleccionFutbol || campeonFutbol?.equipo_nombre || '')}
-                disabled={savingCampeon === 'Fútbol 5' || !(seleccionFutbol || campeonFutbol?.equipo_nombre)}
+                onClick={() => handleGuardarCampeon('futbol_masculino', 'Fútbol 5 Masculino', seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || '')}
+                disabled={savingCampeon === 'futbol_masculino' || !(seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre)}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
               >
-                {savingCampeon === 'Fútbol 5' ? 'Guardando Campeón...' : 'Guardar Campeón'}
+                {savingCampeon === 'futbol_masculino' ? 'Guardando...' : 'Guardar Campeón'}
               </button>
             </div>
 
-            {/* Bloque 2: Pádel */}
+            {/* Bloque 2: Fútbol 5 Femenino */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-wider bg-sky-100 text-sky-800 px-3 py-1 rounded-lg border border-sky-200">
-                  🎾 Pádel
+                <span className="text-xs font-extrabold uppercase tracking-wider bg-fuchsia-100 text-fuchsia-800 px-3 py-1 rounded-lg border border-fuchsia-200">
+                  ⚽ Fútbol Femenino
                 </span>
-                {campeonPadel && (
-                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
-                    👑 Actual: {campeonPadel.equipo_nombre}
+                {campeonFutbolFem && (
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={campeonFutbolFem.equipo_nombre}>
+                    👑 {campeonFutbolFem.equipo_nombre}
                   </span>
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Seleccionar Pareja Campeona de Pádel:
+                  Equipo Campeón Femenino:
+                </label>
+                <select
+                  value={seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || ''}
+                  onChange={(e) => setSeleccionFutbolFem(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
+                >
+                  <option value="">-- Elige la Campeona --</option>
+                  {equiposFutbolFem.map((eq) => (
+                    <option key={eq.id} value={eq.nombre}>
+                      {eq.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleGuardarCampeon('futbol_femenino', 'Fútbol 5 Femenino', seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || '')}
+                disabled={savingCampeon === 'futbol_femenino' || !(seleccionFutbolFem || campeonFutbolFem?.equipo_nombre)}
+                className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
+              >
+                {savingCampeon === 'futbol_femenino' ? 'Guardando...' : 'Guardar Campeona'}
+              </button>
+            </div>
+
+            {/* Bloque 3: Pádel */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider bg-sky-100 text-sky-800 px-3 py-1 rounded-lg border border-sky-200">
+                  🎾 Pádel
+                </span>
+                {campeonPadel && (
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={campeonPadel.equipo_nombre}>
+                    👑 {campeonPadel.equipo_nombre}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Pareja Campeona de Pádel:
                 </label>
                 <select
                   value={seleccionPadel || campeonPadel?.equipo_nombre || ''}
                   onChange={(e) => setSeleccionPadel(e.target.value)}
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
                 >
-                  <option value="">-- Elige la Pareja Campeona de Pádel --</option>
+                  <option value="">-- Elige la Pareja Campeona --</option>
                   {equiposPadel.map((eq) => (
                     <option key={eq.id} value={eq.nombre}>
                       {eq.nombre}
@@ -964,11 +1037,11 @@ const PanelAdminContenido: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => handleGuardarCampeon('Pádel', seleccionPadel || campeonPadel?.equipo_nombre || '')}
-                disabled={savingCampeon === 'Pádel' || !(seleccionPadel || campeonPadel?.equipo_nombre)}
+                onClick={() => handleGuardarCampeon('padel', 'Pádel', seleccionPadel || campeonPadel?.equipo_nombre || '')}
+                disabled={savingCampeon === 'padel' || !(seleccionPadel || campeonPadel?.equipo_nombre)}
                 className="w-full bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
               >
-                {savingCampeon === 'Pádel' ? 'Guardando Campeón...' : 'Guardar Campeón'}
+                {savingCampeon === 'padel' ? 'Guardando...' : 'Guardar Campeón'}
               </button>
             </div>
           </div>
