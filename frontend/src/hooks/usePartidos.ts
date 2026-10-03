@@ -35,10 +35,30 @@ export const usePartidos = () => {
     revalidateOnReconnect: true,
   });
 
+  const eliminarPartido = async (id: number | string) => {
+    try {
+      const response = await fetch(`/api/partidos/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Error al eliminar el partido');
+      }
+      // Actualizar el estado local filtrando el partido eliminado
+      await mutate(
+        (current) => (current || []).filter((p) => String(p.id) !== String(id)),
+        { revalidate: true }
+      );
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   return {
     partidos: data ?? [],
     isLoading,
     error,
     mutate,
+    eliminarPartido,
   };
 };

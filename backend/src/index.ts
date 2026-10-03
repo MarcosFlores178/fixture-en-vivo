@@ -82,6 +82,19 @@ app.patch('/api/partidos/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Eliminar un partido por ID
+app.delete('/api/partidos/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.partido.delete({
+      where: { id },
+    });
+    res.json({ message: 'Partido eliminado exitosamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar el partido' });
+  }
+});
+
 // ================= EQUIPOS =================
 
 // 4. Obtener todos los equipos

@@ -24,7 +24,7 @@ export const getDeporteLabel = (dep: string): string => {
 // Componente interno que contiene la lógica y llamadas a la API.
 // Solo se monta cuando autorizado === true, garantizando cero peticiones si el PIN falla.
 const PanelAdminContenido: React.FC = () => {
-  const { partidos, isLoading: isLoadingPartidos, error: errorPartidos, mutate: mutatePartidos } = usePartidos();
+  const { partidos, isLoading: isLoadingPartidos, error: errorPartidos, mutate: mutatePartidos, eliminarPartido } = usePartidos();
   const { equipos, isLoading: isLoadingEquipos, error: errorEquipos, mutate: mutateEquipos, eliminarEquipo } = useEquipos();
   const { campeones, isLoading: isLoadingCampeones, mutate: mutateCampeones } = useCampeones();
 
@@ -863,33 +863,47 @@ const PanelAdminContenido: React.FC = () => {
                           </table>
                         </div>
 
-                        {/* Botones de Ganador */}
-                        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            Declarar Ganador:
-                          </span>
+                        {/* Botones de Ganador y Eliminar */}
+                        <div className="flex justify-between items-center w-full flex-wrap gap-3 pt-2">
                           <button
                             type="button"
-                            onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_a })}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 active:scale-95 ${
-                              partido.ganador === partido.equipo_a
-                                ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
-                                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
-                            }`}
+                            onClick={() => {
+                              if (window.confirm('¿Estás seguro de eliminar este partido?')) {
+                                eliminarPartido(partido.id);
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium px-2 flex items-center gap-1 transition cursor-pointer"
+                            title="Eliminar partido"
                           >
-                            🏆 Gana {partido.equipo_a}
+                            🗑️ Eliminar
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_b })}
-                            className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 active:scale-95 ${
-                              partido.ganador === partido.equipo_b
-                                ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
-                                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
-                            }`}
-                          >
-                            🏆 Gana {partido.equipo_b}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              Declarar Ganador:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_a })}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 active:scale-95 ${
+                                partido.ganador === partido.equipo_a
+                                  ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                              }`}
+                            >
+                              🏆 Gana {partido.equipo_a}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_b })}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 active:scale-95 ${
+                                partido.ganador === partido.equipo_b
+                                  ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                              }`}
+                            >
+                              🏆 Gana {partido.equipo_b}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -955,33 +969,47 @@ const PanelAdminContenido: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Botones de Ganador para Fútbol */}
-                        <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            Declarar Ganador:
-                          </span>
+                        {/* Botones de Ganador y Eliminar para Fútbol */}
+                        <div className="flex justify-between items-center w-full flex-wrap gap-3 pt-1">
                           <button
                             type="button"
-                            onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_a })}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 ${
-                              partido.ganador === partido.equipo_a
-                                ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
-                                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
-                            }`}
+                            onClick={() => {
+                              if (window.confirm('¿Estás seguro de eliminar este partido?')) {
+                                eliminarPartido(partido.id);
+                              }
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium px-2 flex items-center gap-1 transition cursor-pointer"
+                            title="Eliminar partido"
                           >
-                            🏆 {partido.equipo_a}
+                            🗑️ Eliminar
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_b })}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 ${
-                              partido.ganador === partido.equipo_b
-                                ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
-                                : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
-                            }`}
-                          >
-                            🏆 {partido.equipo_b}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                              Declarar Ganador:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_a })}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 ${
+                                partido.ganador === partido.equipo_a
+                                  ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                              }`}
+                            >
+                              🏆 {partido.equipo_a}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleActualizar(partido.id, { estado: 'finalizado', ganador: partido.equipo_b })}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1 ${
+                                partido.ganador === partido.equipo_b
+                                  ? 'bg-amber-500 text-white ring-2 ring-amber-300 shadow-md'
+                                  : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                              }`}
+                            >
+                              🏆 {partido.equipo_b}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
