@@ -92,6 +92,16 @@ export const VistaPublica: React.FC = () => {
                   const esGanadorA = finalizado && partido.ganador === partido.equipo_a;
                   const esGanadorB = finalizado && partido.ganador === partido.equipo_b;
 
+                  // Lógica para color de sets en pádel
+                  const getColorSet = (scorePropio: number, scoreRival: number) => {
+                    if (enJuego) return 'text-emerald-400';
+                    if (finalizado) {
+                      // El número mayor se resalta en dorado/ámbar; el menor o empate se mantiene blanco
+                      return scorePropio > scoreRival ? 'text-amber-400' : 'text-white';
+                    }
+                    return 'text-gray-600';
+                  };
+
                   return (
                     <div
                       key={partido.id}
@@ -157,23 +167,17 @@ export const VistaPublica: React.FC = () => {
                               </div>
 
                               <div className="col-span-2 text-center">
-                                <span className={`text-2xl sm:text-3xl font-black ${
-                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
-                                }`}>
+                                <span className={`text-2xl sm:text-3xl font-black ${getColorSet(partido.set1_a ?? 0, partido.set1_b ?? 0)}`}>
                                   {partido.set1_a ?? 0}
                                 </span>
                               </div>
                               <div className="col-span-2 text-center">
-                                <span className={`text-2xl sm:text-3xl font-black ${
-                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
-                                }`}>
+                                <span className={`text-2xl sm:text-3xl font-black ${getColorSet(partido.set2_a ?? 0, partido.set2_b ?? 0)}`}>
                                   {partido.set2_a ?? 0}
                                 </span>
                               </div>
                               <div className="col-span-2 text-center">
-                                <span className={`text-2xl sm:text-3xl font-black ${
-                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
-                                }`}>
+                                <span className={`text-2xl sm:text-3xl font-black ${getColorSet(partido.set3_a ?? 0, partido.set3_b ?? 0)}`}>
                                   {partido.set3_a ?? 0}
                                 </span>
                               </div>
@@ -196,23 +200,17 @@ export const VistaPublica: React.FC = () => {
                               </div>
 
                               <div className="col-span-2 text-center">
-                                <span className={`text-2xl sm:text-3xl font-black ${
-                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
-                                }`}>
+                                <span className={`text-2xl sm:text-3xl font-black ${getColorSet(partido.set1_b ?? 0, partido.set1_a ?? 0)}`}>
                                   {partido.set1_b ?? 0}
                                 </span>
                               </div>
                               <div className="col-span-2 text-center">
-                                <span className={`text-2xl sm:text-3xl font-black ${
-                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
-                                }`}>
+                                <span className={`text-2xl sm:text-3xl font-black ${getColorSet(partido.set2_b ?? 0, partido.set2_a ?? 0)}`}>
                                   {partido.set2_b ?? 0}
                                 </span>
                               </div>
                               <div className="col-span-2 text-center">
-                                <span className={`text-2xl sm:text-3xl font-black ${
-                                  enJuego ? 'text-emerald-400' : finalizado ? 'text-white' : 'text-gray-600'
-                                }`}>
+                                <span className={`text-2xl sm:text-3xl font-black ${getColorSet(partido.set3_b ?? 0, partido.set3_a ?? 0)}`}>
                                   {partido.set3_b ?? 0}
                                 </span>
                               </div>
