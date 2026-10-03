@@ -46,10 +46,16 @@ const PanelAdminContenido: React.FC = () => {
   // Retroalimentación visual de actualización de partidos
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // ================= ESTADO DE CORONAR CAMPEONES (3 CATEGORÍAS) =================
+  // ================= ESTADO DE CORONAR CAMPEONES Y SUBCAMPEONES =================
   const [seleccionFutbolMasc, setSeleccionFutbolMasc] = useState<string>('');
+  const [seleccionSubFutbolMasc, setSeleccionSubFutbolMasc] = useState<string>('');
+
   const [seleccionFutbolFem, setSeleccionFutbolFem] = useState<string>('');
+  const [seleccionSubFutbolFem, setSeleccionSubFutbolFem] = useState<string>('');
+
   const [seleccionPadel, setSeleccionPadel] = useState<string>('');
+  const [seleccionSubPadel, setSeleccionSubPadel] = useState<string>('');
+
   const [savingCampeon, setSavingCampeon] = useState<string | null>(null);
   const [mensajeCampeon, setMensajeCampeon] = useState<string | null>(null);
 
@@ -67,22 +73,37 @@ const PanelAdminContenido: React.FC = () => {
     [campeones]
   );
 
-  // Inicializar selección con los datos existentes
+  // Inicializar selección de campeones y subcampeones con datos existentes
   useEffect(() => {
-    if (campeonFutbolMasc && !seleccionFutbolMasc) {
-      setSeleccionFutbolMasc(campeonFutbolMasc.equipo_nombre);
+    if (campeonFutbolMasc) {
+      if (!seleccionFutbolMasc && campeonFutbolMasc.equipo_nombre) {
+        setSeleccionFutbolMasc(campeonFutbolMasc.equipo_nombre);
+      }
+      if (!seleccionSubFutbolMasc && campeonFutbolMasc.subcampeon_nombre) {
+        setSeleccionSubFutbolMasc(campeonFutbolMasc.subcampeon_nombre);
+      }
     }
   }, [campeonFutbolMasc]);
 
   useEffect(() => {
-    if (campeonFutbolFem && !seleccionFutbolFem) {
-      setSeleccionFutbolFem(campeonFutbolFem.equipo_nombre);
+    if (campeonFutbolFem) {
+      if (!seleccionFutbolFem && campeonFutbolFem.equipo_nombre) {
+        setSeleccionFutbolFem(campeonFutbolFem.equipo_nombre);
+      }
+      if (!seleccionSubFutbolFem && campeonFutbolFem.subcampeon_nombre) {
+        setSeleccionSubFutbolFem(campeonFutbolFem.subcampeon_nombre);
+      }
     }
   }, [campeonFutbolFem]);
 
   useEffect(() => {
-    if (campeonPadel && !seleccionPadel) {
-      setSeleccionPadel(campeonPadel.equipo_nombre);
+    if (campeonPadel) {
+      if (!seleccionPadel && campeonPadel.equipo_nombre) {
+        setSeleccionPadel(campeonPadel.equipo_nombre);
+      }
+      if (!seleccionSubPadel && campeonPadel.subcampeon_nombre) {
+        setSeleccionSubPadel(campeonPadel.subcampeon_nombre);
+      }
     }
   }, [campeonPadel]);
 
@@ -243,9 +264,14 @@ const PanelAdminContenido: React.FC = () => {
     handleActualizar(partido.id, { [setKey]: nuevoValor });
   };
 
-  // 4. Guardar Campeón (POST /api/campeones con upsert)
-  const handleGuardarCampeon = async (deporteKey: CategoriaDeporte, nombreLabel: string, equipoSeleccionado: string) => {
-    if (!equipoSeleccionado) {
+  // 4. Guardar Campeón y Subcampeón (POST /api/campeones con upsert)
+  const handleGuardarCampeon = async (
+    deporteKey: CategoriaDeporte,
+    nombreLabel: string,
+    equipoCampeon: string,
+    equipoSubcampeon: string
+  ) => {
+    if (!equipoCampeon) {
       alert(`Selecciona un equipo para coronar como campeón de ${nombreLabel}.`);
       return;
     }
@@ -257,19 +283,24 @@ const PanelAdminContenido: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deporte: deporteKey,
-          equipo_nombre: equipoSeleccionado,
+          equipo_nombre: equipoCampeon,
+          subcampeon_nombre: equipoSubcampeon ? equipoSubcampeon : null,
         }),
       });
 
       if (!res.ok) {
-        throw new Error('Error al registrar el campeón en el servidor');
+        throw new Error('Error al registrar el podio en el servidor');
       }
 
       await mutateCampeones();
-      setMensajeCampeon(`¡Campeón de ${nombreLabel} actualizado a "${equipoSeleccionado}"!`);
+      setMensajeCampeon(
+        `¡Podio de ${nombreLabel} guardado: 🥇 ${equipoCampeon}${
+          equipoSubcampeon ? ` | 🥈 ${equipoSubcampeon}` : ''
+        }!`
+      );
       setTimeout(() => setMensajeCampeon(null), 3500);
     } catch (err: any) {
-      alert(err.message || 'Error al guardar campeón');
+      alert(err.message || 'Error al guardar podio');
     } finally {
       setSavingCampeon(null);
     }
@@ -290,7 +321,7 @@ const PanelAdminContenido: React.FC = () => {
               </h1>
             </div>
             <p className="text-slate-500 text-sm mt-1">
-              Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel: equipos, programación, marcadores en vivo y campeones.
+              Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel: equipos, programación, marcadores en vivo, campeones y subcampeones.
             </p>
           </div>
           <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 w-fit">
@@ -799,7 +830,7 @@ const PanelAdminContenido: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      /* ===================== MODO FÚTBOL (MASCULINO O FEMENINO) ===================== */
+                      /* ===================== MODO FÚTBOL ===================== */
                       <div className="space-y-4">
                         <div className="flex items-center justify-center flex-wrap gap-4 sm:gap-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                           {/* Equipo A */}
@@ -898,20 +929,20 @@ const PanelAdminContenido: React.FC = () => {
           )}
         </section>
 
-        {/* ================= SECCIÓN: 👑 CORONAR CAMPEONES (3 CATEGORÍAS) ================= */}
+        {/* ================= SECCIÓN: 👑 CORONAR CAMPEONES Y SUBCAMPEONES ================= */}
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 pb-3 border-b border-slate-100">
             <div>
               <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
                 <span>👑</span>
-                Coronar Campeones
+                Coronar Campeones y Subcampeones
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Define o actualiza a los campeones oficiales para Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel.
+                Define o actualiza a los campeones oficiales y subcampeones del torneo para Fútbol 5 Masculino, Fútbol 5 Femenino y Pádel.
               </p>
             </div>
             {isLoadingCampeones && (
-              <span className="text-xs text-slate-500 animate-pulse">Sincronizando campeones...</span>
+              <span className="text-xs text-slate-500 animate-pulse">Sincronizando podios...</span>
             )}
           </div>
 
@@ -929,20 +960,20 @@ const PanelAdminContenido: React.FC = () => {
                   ⚽ Fútbol Masculino
                 </span>
                 {campeonFutbolMasc && (
-                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={campeonFutbolMasc.equipo_nombre}>
-                    👑 {campeonFutbolMasc.equipo_nombre}
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full truncate max-w-[130px]" title={campeonFutbolMasc.equipo_nombre}>
+                    🥇 {campeonFutbolMasc.equipo_nombre}
                   </span>
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Equipo Campeón Masculino:
+                  Equipo Campeón (1º Puesto) *:
                 </label>
                 <select
                   value={seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || ''}
                   onChange={(e) => setSeleccionFutbolMasc(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                 >
                   <option value="">-- Elige el Campeón --</option>
                   {equiposFutbolMasc.map((eq) => (
@@ -953,13 +984,38 @@ const PanelAdminContenido: React.FC = () => {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Subcampeón (2º Puesto):
+                </label>
+                <select
+                  value={seleccionSubFutbolMasc || campeonFutbolMasc?.subcampeon_nombre || ''}
+                  onChange={(e) => setSeleccionSubFutbolMasc(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium"
+                >
+                  <option value="">-- Elige el Subcampeón (opcional) --</option>
+                  {equiposFutbolMasc.map((eq) => (
+                    <option key={eq.id} value={eq.nombre}>
+                      {eq.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <button
                 type="button"
-                onClick={() => handleGuardarCampeon('futbol_masculino', 'Fútbol 5 Masculino', seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || '')}
+                onClick={() =>
+                  handleGuardarCampeon(
+                    'futbol_masculino',
+                    'Fútbol 5 Masculino',
+                    seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre || '',
+                    seleccionSubFutbolMasc || campeonFutbolMasc?.subcampeon_nombre || ''
+                  )
+                }
                 disabled={savingCampeon === 'futbol_masculino' || !(seleccionFutbolMasc || campeonFutbolMasc?.equipo_nombre)}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
               >
-                {savingCampeon === 'futbol_masculino' ? 'Guardando...' : 'Guardar Campeón'}
+                {savingCampeon === 'futbol_masculino' ? 'Guardando...' : 'Guardar Campeón y Subcampeón'}
               </button>
             </div>
 
@@ -970,20 +1026,20 @@ const PanelAdminContenido: React.FC = () => {
                   ⚽ Fútbol Femenino
                 </span>
                 {campeonFutbolFem && (
-                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={campeonFutbolFem.equipo_nombre}>
-                    👑 {campeonFutbolFem.equipo_nombre}
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full truncate max-w-[130px]" title={campeonFutbolFem.equipo_nombre}>
+                    🥇 {campeonFutbolFem.equipo_nombre}
                   </span>
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Equipo Campeón Femenino:
+                  Equipo Campeón (1º Puesto) *:
                 </label>
                 <select
                   value={seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || ''}
                   onChange={(e) => setSeleccionFutbolFem(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 font-medium"
                 >
                   <option value="">-- Elige la Campeona --</option>
                   {equiposFutbolFem.map((eq) => (
@@ -994,13 +1050,38 @@ const PanelAdminContenido: React.FC = () => {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Subcampeón (2º Puesto):
+                </label>
+                <select
+                  value={seleccionSubFutbolFem || campeonFutbolFem?.subcampeon_nombre || ''}
+                  onChange={(e) => setSeleccionSubFutbolFem(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium"
+                >
+                  <option value="">-- Elige la Subcampeona (opcional) --</option>
+                  {equiposFutbolFem.map((eq) => (
+                    <option key={eq.id} value={eq.nombre}>
+                      {eq.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <button
                 type="button"
-                onClick={() => handleGuardarCampeon('futbol_femenino', 'Fútbol 5 Femenino', seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || '')}
+                onClick={() =>
+                  handleGuardarCampeon(
+                    'futbol_femenino',
+                    'Fútbol 5 Femenino',
+                    seleccionFutbolFem || campeonFutbolFem?.equipo_nombre || '',
+                    seleccionSubFutbolFem || campeonFutbolFem?.subcampeon_nombre || ''
+                  )
+                }
                 disabled={savingCampeon === 'futbol_femenino' || !(seleccionFutbolFem || campeonFutbolFem?.equipo_nombre)}
                 className="w-full bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
               >
-                {savingCampeon === 'futbol_femenino' ? 'Guardando...' : 'Guardar Campeona'}
+                {savingCampeon === 'futbol_femenino' ? 'Guardando...' : 'Guardar Campeón y Subcampeón'}
               </button>
             </div>
 
@@ -1011,20 +1092,20 @@ const PanelAdminContenido: React.FC = () => {
                   🎾 Pádel
                 </span>
                 {campeonPadel && (
-                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full truncate max-w-[120px]" title={campeonPadel.equipo_nombre}>
-                    👑 {campeonPadel.equipo_nombre}
+                  <span className="text-xs text-amber-600 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full truncate max-w-[130px]" title={campeonPadel.equipo_nombre}>
+                    🥇 {campeonPadel.equipo_nombre}
                   </span>
                 )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Pareja Campeona de Pádel:
+                  Pareja Campeona (1º Puesto) *:
                 </label>
                 <select
                   value={seleccionPadel || campeonPadel?.equipo_nombre || ''}
                   onChange={(e) => setSeleccionPadel(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium"
                 >
                   <option value="">-- Elige la Pareja Campeona --</option>
                   {equiposPadel.map((eq) => (
@@ -1035,13 +1116,38 @@ const PanelAdminContenido: React.FC = () => {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Subcampeón (2º Puesto):
+                </label>
+                <select
+                  value={seleccionSubPadel || campeonPadel?.subcampeon_nombre || ''}
+                  onChange={(e) => setSeleccionSubPadel(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 font-medium"
+                >
+                  <option value="">-- Elige la Pareja Subcampeona (opcional) --</option>
+                  {equiposPadel.map((eq) => (
+                    <option key={eq.id} value={eq.nombre}>
+                      {eq.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <button
                 type="button"
-                onClick={() => handleGuardarCampeon('padel', 'Pádel', seleccionPadel || campeonPadel?.equipo_nombre || '')}
+                onClick={() =>
+                  handleGuardarCampeon(
+                    'padel',
+                    'Pádel',
+                    seleccionPadel || campeonPadel?.equipo_nombre || '',
+                    seleccionSubPadel || campeonPadel?.subcampeon_nombre || ''
+                  )
+                }
                 disabled={savingCampeon === 'padel' || !(seleccionPadel || campeonPadel?.equipo_nombre)}
                 className="w-full bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2"
               >
-                {savingCampeon === 'padel' ? 'Guardando...' : 'Guardar Campeón'}
+                {savingCampeon === 'padel' ? 'Guardando...' : 'Guardar Campeón y Subcampeón'}
               </button>
             </div>
           </div>

@@ -8,9 +8,10 @@ datasource db {
 }
 
 model Campeon {
-  id            String @id @default(uuid())
-  deporte       String @unique
-  equipo_nombre String
+  id                String  @id @default(uuid())
+  deporte           String  @unique
+  equipo_nombre     String
+  subcampeon_nombre String?
 }
 
 model Equipo {

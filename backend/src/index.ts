@@ -124,14 +124,21 @@ app.get('/api/campeones', async (_req: Request, res: Response) => {
   }
 });
 
-// 7. Registrar o actualizar campeón por deporte con upsert
+// 7. Registrar o actualizar campeón y subcampeón por deporte con upsert
 app.post('/api/campeones', async (req: Request, res: Response) => {
   try {
-    const { deporte, equipo_nombre } = req.body;
+    const { deporte, equipo_nombre, subcampeon_nombre } = req.body;
     const campeon = await prisma.campeon.upsert({
       where: { deporte },
-      update: { equipo_nombre },
-      create: { deporte, equipo_nombre },
+      update: {
+        equipo_nombre,
+        subcampeon_nombre: subcampeon_nombre !== undefined ? subcampeon_nombre : null,
+      },
+      create: {
+        deporte,
+        equipo_nombre,
+        subcampeon_nombre: subcampeon_nombre !== undefined ? subcampeon_nombre : null,
+      },
     });
     res.json(campeon);
   } catch (error) {

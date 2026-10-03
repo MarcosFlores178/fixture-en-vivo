@@ -353,15 +353,30 @@ export const VistaPublica: React.FC = () => {
                 </div>
               )}
 
-              {/* Banner de Campeón Espectacular para esta categoría específica */}
+              {/* Podio: Banner de Campeón y Subcampeón */}
               {campeonSeccion && (
-                <div className="mt-10 p-8 rounded-2xl text-center shadow-2xl shadow-yellow-500/40 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 transform hover:scale-105 transition-transform">
-                  <p className="text-yellow-900 font-black tracking-widest text-xl mb-4">
-                    🏆 CAMPEÓN DE {seccion.titulo.toUpperCase()} 🏆
-                  </p>
-                  <h3 className="text-6xl font-extrabold text-white drop-shadow-lg">
-                    {campeonSeccion.equipo_nombre}
-                  </h3>
+                <div className="flex flex-col items-center mt-10">
+                  {/* Banner Dorado Gigante del Campeón */}
+                  <div className="w-full p-8 rounded-2xl text-center shadow-2xl shadow-yellow-500/40 bg-gradient-to-br from-yellow-300 via-yellow-500 to-yellow-600 transform hover:scale-105 transition-transform">
+                    <p className="text-yellow-900 font-black tracking-widest text-xl mb-4">
+                      🏆 CAMPEÓN DE {seccion.titulo.toUpperCase()} 🏆
+                    </p>
+                    <h3 className="text-6xl font-extrabold text-white drop-shadow-lg">
+                      {campeonSeccion.equipo_nombre}
+                    </h3>
+                  </div>
+
+                  {/* Bloque Plateado Centrado del Subcampeón */}
+                  {campeonSeccion.subcampeon_nombre && (
+                    <div className="w-fit mx-auto mt-4 px-10 py-4 rounded-2xl shadow-md bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400 border border-white text-center transform hover:scale-105 transition-transform">
+                      <p className="text-sm font-bold tracking-widest uppercase text-slate-600 mb-1">
+                        🥈 SUBCAMPEÓN
+                      </p>
+                      <h4 className="text-4xl font-extrabold text-slate-800 drop-shadow-sm">
+                        {campeonSeccion.subcampeon_nombre}
+                      </h4>
+                    </div>
+                  )}
                 </div>
               )}
             </section>

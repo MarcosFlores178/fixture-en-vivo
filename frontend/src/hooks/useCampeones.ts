@@ -4,6 +4,7 @@ export interface Campeon {
   id: string;
   deporte: string;
   equipo_nombre: string;
+  subcampeon_nombre?: string | null;
 }
 
 const fetcher = async (url: string): Promise<Campeon[]> => {
