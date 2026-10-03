@@ -79,6 +79,11 @@ export const VistaPublica: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-white py-10 px-4 sm:px-8 lg:px-12 font-sans">
       {/* Encabezado Principal */}
       <header className="max-w-7xl mx-auto pb-6 border-b border-gray-800 mb-10">
+        <img
+          src="/logos-unlar.png"
+          alt="Logos institucionales UNLaR y DACEFyN"
+          className="w-full max-w-3xl mx-auto mb-8 rounded-xl shadow-lg object-contain border border-slate-700/50"
+        />
         <div className="text-center w-full">
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
             Torneo de Fútbol y Pádel 2026
